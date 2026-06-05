@@ -1,11 +1,10 @@
+
 name: Deploy backend
 
 on:
   push:
     branches:
       - main
-    paths:
-      - 'yesofflineem_backend/**'
 
 jobs:
   deploy:
