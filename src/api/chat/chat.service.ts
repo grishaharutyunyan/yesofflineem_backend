@@ -112,7 +112,8 @@ export class ChatService {
             });
             result = `Showing all ${allEventCards.length} upcoming gatherings as visual cards.`;
           } else if (tc.function.name === 'get_events') {
-            result = handleGetEvents(allEvents.map((e) => eventSummaryForLang(e, lang ?? 'en')), args.filter);
+            const monthArg = args.month ? parseInt(args.month, 10) : undefined;
+            result = handleGetEvents(allEvents.map((e) => eventSummaryForLang(e, lang ?? 'en')), args.filter, monthArg);
           } else if (tc.function.name === 'suggest_booking') {
             bookingSlug = args.slug;
             const event = allEvents.find((e) => e.slug === args.slug);

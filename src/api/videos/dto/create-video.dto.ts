@@ -11,9 +11,6 @@ export class CreateVideoDto {
   @IsString()
   url: string;
 
-  @IsOptional() @IsString()
-  thumbnailUrl?: string | null;
-
   @IsOptional() @IsNumber()
   priority?: number;
 }

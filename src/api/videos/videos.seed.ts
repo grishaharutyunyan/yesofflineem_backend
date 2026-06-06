@@ -8,7 +8,6 @@ export const SEED_VIDEOS: CreateVideoDto[] = [
       hy: 'Հետևեք Դիլիջանի ռետրիտին ժամանումից մինչև հրաժեշտի խարույկ։',
     },
     url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    thumbnailUrl: null,
     priority: 1,
   },
   {
@@ -18,7 +17,6 @@ export const SEED_VIDEOS: CreateVideoDto[] = [
       hy: 'Կարճ ֆիլմ կիրճով մեր առավոտյան վազքի մասին։',
     },
     url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    thumbnailUrl: null,
     priority: 2,
   },
   {
@@ -28,7 +26,6 @@ export const SEED_VIDEOS: CreateVideoDto[] = [
       hy: 'Անին բացատրում է հավաքույթների գաղափարը երկու րոպեից կարճ ժամանակում։',
     },
     url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    thumbnailUrl: null,
     priority: 3,
   },
 ];

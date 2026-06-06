@@ -4,7 +4,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseEnumPipe,
   ParseIntPipe,
   Post,
   Put,
@@ -15,8 +14,7 @@ import { JwtGuard } from '../guards/jwt.guard';
 import { EventsService } from '../../events/events.service';
 import { CreateEventDto } from '../../events/dto/create-event.dto';
 import { UpdateEventDto } from '../../events/dto/update-event.dto';
-import { EventStatus } from '../../../constants/enums/event.enums';
-import { PaginationOptionsDto } from '../../../orm/pagination/dto/pagination-options.dto';
+import { AdminEventsQueryDto } from './dto/admin-events-query.dto';
 import {
   parseGetPaginationParams,
   getResponseForPagination,
@@ -28,13 +26,9 @@ export class AdminEventsController {
   constructor(private readonly eventsService: EventsService) {}
 
   @Get()
-  async findAll(
-    @Query() paginationOptions: PaginationOptionsDto,
-    @Query('status', new ParseEnumPipe(EventStatus, { optional: true }))
-    status?: EventStatus,
-  ) {
-    const params = parseGetPaginationParams(paginationOptions);
-    if (status) params.filter = { ...params.filter, status };
+  async findAll(@Query() query: AdminEventsQueryDto) {
+    const params = parseGetPaginationParams(query);
+    if (query.status) params.filter = { ...params.filter, status: query.status };
     const result = await this.eventsService.paginate(params);
     return getResponseForPagination(result, params);
   }

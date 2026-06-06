@@ -15,9 +15,6 @@ export class VideoEntity {
   @Column()
   url: string;
 
-  @Column({ nullable: true })
-  thumbnailUrl: string | null;
-
   @Column({ type: 'int', default: 0 })
   priority: number;
 

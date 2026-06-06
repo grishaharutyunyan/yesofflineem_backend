@@ -19,13 +19,17 @@ export const agentTools = [
     function: {
       name: 'get_events',
       description:
-        'Get upcoming yesofflineem gatherings. Optionally filter by city, keyword, or date.',
+        'Get upcoming yesofflineem gatherings. Use this when the user asks about events in a specific month, city, or type. Pass `month` (1–12) to filter by month, and/or `filter` for keyword filtering.',
       parameters: {
         type: 'object',
         properties: {
           filter: {
             type: 'string',
             description: 'Keyword to filter events by title, city, or location',
+          },
+          month: {
+            type: 'number',
+            description: 'Month number (1=January … 12=December) to filter events by start date',
           },
         },
         required: [],
@@ -56,18 +60,24 @@ export const agentTools = [
   },
 ];
 
-export function handleGetEvents(events: EventSummary[], filter?: string): string {
+export function handleGetEvents(events: EventSummary[], filter?: string, month?: number): string {
   let list = events;
+  if (month) {
+    list = list.filter((e) => {
+      const d = new Date(e.date);
+      return d.getMonth() + 1 === month;
+    });
+  }
   if (filter) {
     const q = filter.toLowerCase();
-    list = events.filter(
+    list = list.filter(
       (e) =>
         e.title.toLowerCase().includes(q) ||
         e.location.toLowerCase().includes(q) ||
         e.locationFull.toLowerCase().includes(q),
     );
   }
-  if (!list.length) return 'No matching events found.';
+  if (!list.length) return 'No matching events found for that time or filter.';
   return list
     .map(
       (e) =>

@@ -1,10 +1,12 @@
 import 'dotenv/config';
 import * as path from 'path';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+
+const logger = new Logger('Bootstrap');
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -23,18 +25,20 @@ async function bootstrap() {
     }),
   );
 
+  const frontendUrl = config.get<string>('frontendUrl') ?? 'http://localhost:3000';
   app.enableCors({
-    origin: config.get<string>('frontendUrl') ?? 'http://localhost:3002',
+    origin: frontendUrl,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization',
   });
 
   const port = config.get<number>('port');
   await app.listen(port);
-  console.log(`Backend running on http://localhost:${port}`);
+  logger.log(`Backend running on http://localhost:${port}`);
+  logger.log(`CORS allowed origin: ${frontendUrl}`);
 }
 
-bootstrap().catch((error) => {
-  console.error('Failed to start application', error);
+bootstrap().catch((error: unknown) => {
+  logger.error('Failed to start application', error);
   process.exit(1);
 });
