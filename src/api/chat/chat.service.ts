@@ -68,12 +68,14 @@ export class ChatService {
     ];
 
     try {
+      // First call: non-streaming so we can inspect tool_calls before acting
       const first = await this.openai.chat.completions.create({
         model: this.model,
         messages,
         tools: agentTools as OpenAI.Chat.Completions.ChatCompletionTool[],
         tool_choice: 'auto',
         max_tokens: 400,
+        stream: false,
       });
 
       const choice = first.choices[0];
@@ -139,15 +141,29 @@ export class ChatService {
           toolMessages.push({ role: 'tool', tool_call_id: tc.id, content: result });
         }
 
-        const second = await this.openai.chat.completions.create({
+        // Second call: stream the final reply and collect chunks
+        const stream = await this.openai.chat.completions.create({
           model: this.model,
           messages: toolMessages,
           max_tokens: 400,
+          stream: true,
         });
 
-        finalReply = second.choices[0].message.content ?? '';
+        for await (const chunk of stream) {
+          finalReply += chunk.choices[0]?.delta?.content ?? '';
+        }
       } else {
-        finalReply = choice.message.content ?? '';
+        // No tool calls — stream the direct reply and collect chunks
+        const stream = await this.openai.chat.completions.create({
+          model: this.model,
+          messages,
+          max_tokens: 400,
+          stream: true,
+        });
+
+        for await (const chunk of stream) {
+          finalReply += chunk.choices[0]?.delta?.content ?? '';
+        }
       }
 
       this.memory.addMessage(sid, 'assistant', finalReply);
