@@ -83,4 +83,16 @@ export class CreateEventDto {
   @IsOptional()
   @IsObject()
   ctaLabel?: LocaleText | null;
+
+  @IsOptional()
+  @IsObject()
+  hostSectionTitle?: LocaleText | null;
+
+  @IsOptional()
+  @IsObject()
+  goodToKnowTitle?: LocaleText | null;
+
+  @IsOptional()
+  @IsObject()
+  goodToKnowText?: LocaleText | null;
 }

@@ -77,6 +77,15 @@ export class EventEntity {
   @Column({ type: 'jsonb', nullable: true })
   ctaLabel: LocaleText | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  hostSectionTitle: LocaleText | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  goodToKnowTitle: LocaleText | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  goodToKnowText: LocaleText | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
