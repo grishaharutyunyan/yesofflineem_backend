@@ -74,6 +74,9 @@ export class EventEntity {
   @Column({ type: 'jsonb', nullable: true })
   galleryImageUrls: string[] | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  ctaLabel: LocaleText | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

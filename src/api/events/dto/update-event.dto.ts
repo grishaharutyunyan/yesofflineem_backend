@@ -63,4 +63,7 @@ export class UpdateEventDto {
 
   @IsOptional() @IsArray()
   galleryImageUrls?: string[] | null;
+
+  @IsOptional() @IsObject()
+  ctaLabel?: LocaleText | null;
 }
