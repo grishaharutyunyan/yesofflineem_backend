@@ -1,4 +1,5 @@
-import { IsArray, IsEnum, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsEnum, IsNumber, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { EventStatus } from '../../../constants/enums/event.enums';
 import type {
   EventCoordinates,
@@ -8,6 +9,7 @@ import type {
   LocaleText,
   ScheduleItemLocalized,
 } from '../event-i18n.types';
+import { ScheduleItemLocalizedDto } from './create-event.dto';
 
 export class UpdateEventDto {
   @IsOptional() @IsString()
@@ -41,7 +43,9 @@ export class UpdateEventDto {
   includes?: LocaleStringList;
 
   @IsOptional() @IsArray()
-  schedule?: ScheduleItemLocalized[];
+  @ValidateNested({ each: true })
+  @Type(() => ScheduleItemLocalizedDto)
+  schedule?: ScheduleItemLocalizedDto[];
 
   @IsOptional() @IsObject()
   host?: EventHost;

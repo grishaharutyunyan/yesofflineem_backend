@@ -6,6 +6,7 @@ import {
   IsArray,
   IsObject,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EventStatus } from '../../../constants/enums/event.enums';
@@ -17,6 +18,17 @@ import type {
   LocaleText,
   ScheduleItemLocalized,
 } from '../event-i18n.types';
+
+export class ScheduleItemLocalizedDto {
+  @IsString()
+  time: string;
+
+  @IsObject()
+  label: LocaleText;
+
+  @IsObject()
+  sub: LocaleText;
+}
 
 export class CreateEventDto {
   @IsOptional()
@@ -52,7 +64,9 @@ export class CreateEventDto {
   includes: LocaleStringList;
 
   @IsArray()
-  schedule: ScheduleItemLocalized[];
+  @ValidateNested({ each: true })
+  @Type(() => ScheduleItemLocalizedDto)
+  schedule: ScheduleItemLocalizedDto[];
 
   @IsObject()
   host: EventHost;
