@@ -63,9 +63,9 @@ export class EventsService extends OrmService<EventEntity> {
   }
 
   async update(id: number, dto: UpdateEventDto): Promise<EventEntity> {
-    await this.findById(id);
-    await this.eventRepo.update(id, dto);
-    return this.findById(id);
+    const ev = await this.findById(id);
+    const updated = this.eventRepo.merge(ev, dto as Partial<EventEntity>);
+    return this.eventRepo.save(updated);
   }
 
   async remove(id: number): Promise<void> {
