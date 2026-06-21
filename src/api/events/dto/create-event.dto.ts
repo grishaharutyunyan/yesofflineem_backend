@@ -5,10 +5,6 @@ import {
   IsEnum,
   IsArray,
   IsObject,
-  IsUrl,
-  IsNullable,
-  ValidateNested,
-  IsInt,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
