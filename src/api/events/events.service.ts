@@ -8,6 +8,14 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { OrmService } from '../../orm/orm.service';
 import { IPaginationData, IPaginationDTO } from '../../constants/interfaces/pagination.interfaces';
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+}
+
 @Injectable()
 export class EventsService extends OrmService<EventEntity> {
   constructor(
@@ -58,8 +66,15 @@ export class EventsService extends OrmService<EventEntity> {
     return ev;
   }
 
-  create(dto: CreateEventDto): Promise<EventEntity> {
-    return this.eventRepo.save(this.eventRepo.create(dto));
+  async create(dto: CreateEventDto): Promise<EventEntity> {
+    let base = slugify(dto.slug?.trim() || dto.title?.en || '');
+    if (!base) base = 'event';
+    let slug = base;
+    let n = 1;
+    while (await this.eventRepo.findOne({ where: { slug } })) {
+      slug = `${base}-${n++}`;
+    }
+    return this.eventRepo.save(this.eventRepo.create({ ...dto, slug }));
   }
 
   async update(id: number, dto: UpdateEventDto): Promise<EventEntity> {

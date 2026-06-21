@@ -19,8 +19,9 @@ import type {
 } from '../event-i18n.types';
 
 export class CreateEventDto {
+  @IsOptional()
   @IsString()
-  slug: string;
+  slug?: string;
 
   @IsOptional()
   @IsEnum(EventStatus)
