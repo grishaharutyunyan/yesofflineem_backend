@@ -50,8 +50,8 @@ export class EventEntity {
   @Column({ type: 'jsonb' })
   includes: LocaleStringList;
 
-  @Column({ type: 'jsonb' })
-  schedule: ScheduleItemLocalized[];
+  @Column({ type: 'jsonb', nullable: true })
+  schedule: ScheduleItemLocalized[] | null;
 
   @Column({ type: 'jsonb' })
   host: EventHost;
