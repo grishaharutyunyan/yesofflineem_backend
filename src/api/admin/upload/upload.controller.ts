@@ -14,10 +14,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { randomUUID } from 'crypto';
 import { JwtGuard } from '../guards/jwt.guard';
+import sharp from 'sharp';
 
-function makeStorage(subfolder: 'images' | 'videos') {
+function makeVideoStorage() {
   return diskStorage({
-    destination: path.join(process.cwd(), 'uploads', subfolder),
+    destination: path.join(process.cwd(), 'uploads', 'videos'),
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
       cb(null, `${randomUUID()}${ext}`);
@@ -29,19 +30,53 @@ function makeStorage(subfolder: 'images' | 'videos') {
 @Controller('upload')
 export class UploadController {
   @Post('image')
-  @UseInterceptors(FileInterceptor('file', { storage: makeStorage('images') }))
-  uploadImage(@UploadedFile() file: Express.Multer.File) {
-    return { url: `/uploads/images/${file.filename}` };
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    const filename = `${randomUUID()}.webp`;
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'images');
+    
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const targetPath = path.join(uploadsDir, filename);
+
+    await sharp(file.buffer)
+      .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+      .toFormat('webp', { quality: 85 })
+      .toFile(targetPath);
+
+    return { url: `/uploads/images/${filename}` };
   }
 
   @Post('images')
-  @UseInterceptors(FilesInterceptor('files', 20, { storage: makeStorage('images') }))
-  uploadImages(@UploadedFiles() files: Express.Multer.File[]) {
-    return { urls: files.map((f) => `/uploads/images/${f.filename}`) };
+  @UseInterceptors(FilesInterceptor('files', 20))
+  async uploadImages(@UploadedFiles() files: Express.Multer.File[]) {
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'images');
+    
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const urls: string[] = [];
+
+    for (const file of files) {
+      const filename = `${randomUUID()}.webp`;
+      const targetPath = path.join(uploadsDir, filename);
+
+      await sharp(file.buffer)
+        .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+        .toFormat('webp', { quality: 85 })
+        .toFile(targetPath);
+
+      urls.push(`/uploads/images/${filename}`);
+    }
+
+    return { urls };
   }
 
   @Post('video')
-  @UseInterceptors(FileInterceptor('file', { storage: makeStorage('videos') }))
+  @UseInterceptors(FileInterceptor('file', { storage: makeVideoStorage() }))
   uploadVideo(@UploadedFile() file: Express.Multer.File) {
     return { url: `/uploads/videos/${file.filename}` };
   }
