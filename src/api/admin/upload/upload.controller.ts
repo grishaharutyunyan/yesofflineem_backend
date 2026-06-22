@@ -42,7 +42,12 @@ export class UploadController {
     const targetPath = path.join(uploadsDir, filename);
 
     await sharp(file.buffer)
-      .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+      .resize({
+        width: 800,
+        height: 1000,
+        fit: 'contain',
+        background: { r: 255, g: 255, b: 255, alpha: 1 }
+      })
       .toFormat('webp', { quality: 85 })
       .toFile(targetPath);
 
@@ -65,7 +70,12 @@ export class UploadController {
       const targetPath = path.join(uploadsDir, filename);
 
       await sharp(file.buffer)
-        .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+        .resize({
+          width: 800,
+          height: 1000,
+          fit: 'contain',
+          background: { r: 255, g: 255, b: 255, alpha: 1 }
+        })
         .toFormat('webp', { quality: 85 })
         .toFile(targetPath);
 
