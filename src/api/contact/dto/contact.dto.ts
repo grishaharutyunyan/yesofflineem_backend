@@ -12,8 +12,13 @@ export class ContactDto {
 
   @IsString()
   @IsOptional()
-  @MaxLength(200)
-  subject?: string;
+  @MaxLength(30)
+  phone?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  source?: string;
 
   @IsString()
   @IsNotEmpty()

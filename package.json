@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-    "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "seed": "ts-node -r dotenv/config -r reflect-metadata src/database/seed.ts",
