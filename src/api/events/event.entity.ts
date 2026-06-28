@@ -86,6 +86,9 @@ export class EventEntity {
   @Column({ type: 'jsonb', nullable: true })
   goodToKnowText: LocaleText | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  goodToKnowTextTitle: LocaleText | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

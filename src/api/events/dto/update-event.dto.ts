@@ -79,4 +79,7 @@ export class UpdateEventDto {
 
   @IsOptional() @IsObject()
   goodToKnowText?: LocaleText | null;
+
+  @IsOptional() @IsObject()
+  goodToKnowTextTitle?: LocaleText | null;
 }
