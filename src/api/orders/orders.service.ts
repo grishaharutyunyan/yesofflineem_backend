@@ -59,6 +59,7 @@ export class OrdersService {
   }
 
   async checkout(dto: CheckoutDto): Promise<{ orderNumber: string; formUrl?: string; redirectTo?: string }> {
+    this.logger.log(`checkout start: slug=${dto.slug} guests=${dto.guests} email=${dto.email} locale=${dto.locale}`);
     const event = await this.eventRepo.findOne({ where: { slug: dto.slug } });
     if (!event) throw new NotFoundException(`Event "${dto.slug}" not found`);
     if (event.status !== EventStatus.ACTIVE) {
@@ -98,6 +99,7 @@ export class OrdersService {
     }
 
     const returnUrl = this.buildReturnUrl(dto.locale, event.slug, orderNumber);
+    this.logger.log(`checkout registering with EPG: orderNumber=${orderNumber} amount=${amount} currency=${currency}`);
     const { orderId, formUrl } = await this.epg.register({
       orderNumber,
       amount,
@@ -110,6 +112,7 @@ export class OrdersService {
     base.epgOrderId = orderId;
     base.epgFormUrl = formUrl;
     await this.orderRepo.save(base);
+    this.logger.log(`checkout done: orderNumber=${orderNumber} epgOrderId=${orderId} formUrl=${formUrl}`);
     return { orderNumber, formUrl };
   }
 

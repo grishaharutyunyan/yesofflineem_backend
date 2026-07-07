@@ -48,6 +48,14 @@ export class EpgService {
   }
 
   private async call(method: string, params: Record<string, string | number>): Promise<any> {
+    // Config sanity: surface an unloaded/blank env before we even hit the network.
+    // Never log the password itself — only whether it is present and its length.
+    this.logger.log(
+      `EPG ${method} config: apiUrl=${this.cfg?.apiUrl ?? 'MISSING'} ` +
+        `userName=${this.cfg?.userName ? `"${this.cfg.userName}"` : 'EMPTY'} ` +
+        `passwordSet=${this.cfg?.password ? `yes(len=${this.cfg.password.length})` : 'NO'}`,
+    );
+
     const body = new URLSearchParams({
       userName: this.cfg.userName,
       password: this.cfg.password,
@@ -56,19 +64,41 @@ export class EpgService {
       if (v !== undefined && v !== null) body.append(k, String(v));
     }
 
+    // Normalize so a trailing slash in apiUrl doesn't produce `…/rest//register.do`.
+    const url = `${this.cfg.apiUrl.replace(/\/+$/, '')}/${method}`;
+
+    // Log outbound params with the password redacted so we can see exactly what
+    // the gateway is being sent.
+    const safeParams = new URLSearchParams(body);
+    if (safeParams.has('password')) safeParams.set('password', '***');
+    this.logger.log(`EPG ${method} -> POST ${url} body=${safeParams.toString()}`);
+
+    const startedAt = Date.now();
     let res: Response;
     try {
-      res = await fetch(`${this.cfg.apiUrl}/${method}`, {
+      res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString(),
+        // Without a timeout a hung connection to the gateway blocks until the
+        // upstream proxy (Cloudflare) times out and returns an opaque 502.
+        signal: AbortSignal.timeout(15000),
       });
     } catch (err) {
-      this.logger.error(`EPG ${method} network error`, err as Error);
+      const e = err as Error;
+      const ms = Date.now() - startedAt;
+      if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+        this.logger.error(`EPG ${method} timed out after ${ms}ms to ${url}`);
+        throw new BadGatewayException('Payment gateway timed out');
+      }
+      this.logger.error(`EPG ${method} network error after ${ms}ms to ${url}: ${e.name}: ${e.message}`, e);
       throw new BadGatewayException('Payment gateway unavailable');
     }
 
+    const ms = Date.now() - startedAt;
     const text = await res.text();
+    this.logger.log(`EPG ${method} <- HTTP ${res.status} in ${ms}ms body=${text.slice(0, 300)}`);
+
     if (!res.ok) {
       this.logger.error(`EPG ${method} HTTP ${res.status}: ${text.slice(0, 200)}`);
       throw new BadGatewayException(`Payment gateway HTTP ${res.status}`);
