@@ -24,6 +24,13 @@ export interface IGlobalConfigs {
     pass: string;
     contactToEmail: string;
   };
+  epg: {
+    apiUrl: string;
+    userName: string;
+    password: string;
+    currency: string;
+    amountMultiplier: number;
+  };
 }
 
 type Primitive = number | string | boolean;

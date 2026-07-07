@@ -8,6 +8,7 @@ import { VideosModule } from './videos/videos.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './admin/auth/auth.module';
 import { ContactModule } from './contact/contact.module';
+import { OrdersModule } from './orders/orders.module';
 
 const publicModules = [
   CommunityModule,
@@ -17,6 +18,7 @@ const publicModules = [
   VideosModule,
   AuthModule,
   ContactModule,
+  OrdersModule,
 ];
 
 @Module({

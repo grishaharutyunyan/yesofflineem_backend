@@ -38,4 +38,11 @@ export default () =>
       pass: process.env.SMTP_PASS,
       contactToEmail: process.env.CONTACT_TO_EMAIL || process.env.ADMIN_EMAIL,
     },
+    epg: {
+      apiUrl: process.env.EPG_API_URL,
+      userName: process.env.EPG_USERNAME,
+      password: process.env.EPG_PASSWORD,
+      currency: process.env.EPG_CURRENCY || '051',
+      amountMultiplier: parseInt(process.env.EPG_AMOUNT_MULTIPLIER || '100', 10),
+    },
   }) as IGlobalConfigs;
