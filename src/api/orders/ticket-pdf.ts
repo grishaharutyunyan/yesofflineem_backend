@@ -1,4 +1,6 @@
-import PDFDocument from 'pdfkit';
+// CommonJS import: the project's tsconfig has no `esModuleInterop`, so a
+// default import would compile to `pdfkit.default` (undefined) and crash.
+import PDFDocument = require('pdfkit');
 
 export interface TicketPdfInput {
   title: string;

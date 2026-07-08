@@ -133,6 +133,54 @@ export class OrdersMailService {
       </div>`;
   }
 
+  /** 'YYYY-MM-DD[ HH:mm]' → calendar-basic stamp (20260712T190000 / 20260712). */
+  private calStamp(value: string | undefined): string {
+    const m = (value ?? '').match(/(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+    if (!m) return '';
+    const [, y, mo, d, h, mi] = m;
+    return h == null ? `${y}${mo}${d}` : `${y}${mo}${d}T${h}${mi}00`;
+  }
+
+  private googleCalUrl(event: EventEntity, order: OrderEntity, title: string): string {
+    const start = this.calStamp(event.dates?.start);
+    const end = this.calStamp(event.dates?.end) || start;
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: title,
+      dates: `${start}/${end}`,
+      location: this.locationText(event),
+      details: `Booking reference: ${order.orderNumber} · Guests: ${order.guests}`,
+    });
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  }
+
+  private mapsUrl(event: EventEntity): string {
+    const c = event.coordinates;
+    if (c && typeof c.lat === 'number' && typeof c.lng === 'number') {
+      return `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}`;
+    }
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.locationText(event))}`;
+  }
+
+  /** Side-by-side "Add to calendar" / "See map" buttons. */
+  private calendarMapButtons(event: EventEntity, order: OrderEntity, title: string): string {
+    const cell = (href: string, label: string) =>
+      `<td width="50%" style="padding:0 5px;">
+         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+           <tr><td align="center" style="border:1px solid #2d2d2d;background:#ffffff;">
+             <a href="${href}" target="_blank" style="display:block;padding:12px 10px;font-family:${SANS};font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;color:#2d2d2d;">${label}</a>
+           </td></tr>
+         </table>
+       </td>`;
+    return `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 4px;">
+        <tr>
+          ${cell(this.googleCalUrl(event, order, title), 'Add to calendar')}
+          ${cell(this.mapsUrl(event), 'See map')}
+        </tr>
+      </table>`;
+  }
+
   /** Wraps content in the branded email shell (header logo, card, footer). */
   private layout(preheader: string, heading: string, inner: string): string {
     return `<!DOCTYPE html>
@@ -190,14 +238,14 @@ export class OrdersMailService {
       this.paragraph(`Hi ${order.firstName},`) +
       this.paragraph(`Your reservation for <strong style="color:#0a0a0a;">${title}</strong> is confirmed. We can't wait to see you there.`) +
       (event ? this.eventDetailsBlock(event) : '') +
+      (event ? this.calendarMapButtons(event, order, title) : '') +
       this.sectionLabel('Reservation summary') +
       this.detailsTable([
         { label: 'Guests', value: String(order.guests) },
         { label: 'Amount', value: `${this.currencyLabel(order)} ${this.formatAmount(order)}` },
         { label: 'Reference', value: order.orderNumber },
       ]) +
-      this.guestBlock(order) +
-      `<p style="margin:22px 0 0;font-family:${SANS};font-size:13px;color:#888888;line-height:1.6;">📄 Your booking confirmation is attached to this email as a PDF — please have it ready at the door.</p>`;
+      this.guestBlock(order);
 
     // The ticket is delivered only as a downloadable PDF attachment.
     const ticketPdf = await buildTicketPdf({
