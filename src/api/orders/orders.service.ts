@@ -88,6 +88,7 @@ export class OrdersService {
       phone: dto.phone ?? null,
       notes: dto.notes ?? null,
       guests: dto.guests,
+      guestDetails: dto.guestDetails ?? null,
       amount,
       currency,
       status: OrderStatus.PENDING,

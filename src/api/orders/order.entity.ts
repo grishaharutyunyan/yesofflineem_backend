@@ -9,6 +9,12 @@ import {
 import { OrderStatus } from '../../constants/enums/order.enums';
 import type { LocaleText } from '../events/event-i18n.types';
 
+export interface GuestDetail {
+  firstName: string;
+  lastName?: string | null;
+  phone?: string | null;
+}
+
 @Entity('orders')
 export class OrderEntity {
   @PrimaryGeneratedColumn()
@@ -44,6 +50,9 @@ export class OrderEntity {
 
   @Column({ type: 'int' })
   guests: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  guestDetails: GuestDetail[] | null;
 
   @Column({ type: 'int' })
   amount: number;
