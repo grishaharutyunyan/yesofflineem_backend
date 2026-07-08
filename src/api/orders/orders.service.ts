@@ -71,7 +71,10 @@ export class OrdersService {
     }
 
     const amount = this.computeAmount(event.price, dto.guests);
-    const orderNumber = randomUUID();
+    // ARCA/EPG requires orderNumber ≤ 32 chars and rejects hyphens ("Order number
+    // is invalid", errorCode=1). A hyphenated UUID is 36 chars; strip the hyphens
+    // to get a unique 32-char alphanumeric value used consistently everywhere.
+    const orderNumber = randomUUID().replace(/-/g, '');
     const currency = this.epgConfig.currency;
 
     const base = this.orderRepo.create({
