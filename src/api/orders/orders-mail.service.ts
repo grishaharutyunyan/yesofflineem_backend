@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 import { OrderEntity } from './order.entity';
+import { MailService } from '../../mail/mail.service';
 
 interface DetailRow {
   label: string;
@@ -16,20 +15,8 @@ const SANS = "'DM Sans', 'Helvetica Neue', Arial, sans-serif";
 @Injectable()
 export class OrdersMailService {
   private readonly logger = new Logger(OrdersMailService.name);
-  private readonly transporter: nodemailer.Transporter;
-  private readonly fromEmail: string;
-  private readonly adminEmail: string;
 
-  constructor(config: ConfigService) {
-    this.fromEmail = config.get<string>('smtp.user');
-    this.adminEmail = config.get<string>('smtp.contactToEmail');
-    this.transporter = nodemailer.createTransport({
-      host: config.get<string>('smtp.host'),
-      port: config.get<number>('smtp.port'),
-      secure: config.get<boolean>('smtp.secure'),
-      auth: { user: this.fromEmail, pass: config.get<string>('smtp.pass') },
-    });
-  }
+  constructor(private readonly mail: MailService) {}
 
   // Maps ISO 4217 numeric currency codes (as stored by the gateway) to their
   // display code. Falls back to the raw stored value for anything unmapped.
@@ -153,40 +140,13 @@ export class OrdersMailService {
       ]) +
       this.guestBlock(order);
     try {
-      await this.transporter.sendMail({
-        from: `<${this.fromEmail}>`,
+      await this.mail.sendMail({
         to: order.email,
         subject: `Booking confirmed — ${title}`,
         html: this.layout(`Your reservation for ${title} is confirmed.`, "You're booked", inner),
       });
     } catch (err) {
       this.logger.error(`Failed to send customer confirmation for ${order.orderNumber}`, err as Error);
-    }
-  }
-
-  async sendAdminNotification(order: OrderEntity): Promise<void> {
-    const title = order.eventTitle?.en ?? order.eventSlug;
-    const inner =
-      this.paragraph('A new paid order has come in.') +
-      this.detailsTable([
-        { label: 'Event', value: title },
-        { label: 'Customer', value: `${order.firstName} ${order.lastName ?? ''}`.trim() },
-        { label: 'Email', value: order.email },
-        { label: 'Phone', value: order.phone ?? '—' },
-        { label: 'Guests', value: String(order.guests) },
-        { label: 'Amount', value: `${this.currencyLabel(order)} ${this.formatAmount(order)}` },
-        { label: 'Reference', value: order.orderNumber },
-      ]) +
-      this.guestBlock(order);
-    try {
-      await this.transporter.sendMail({
-        from: `<${this.fromEmail}>`,
-        to: this.adminEmail,
-        subject: `New paid order — ${title}`,
-        html: this.layout(`New paid order — ${title}`, 'New paid order', inner),
-      });
-    } catch (err) {
-      this.logger.error(`Failed to send admin notification for ${order.orderNumber}`, err as Error);
     }
   }
 }

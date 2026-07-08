@@ -2,32 +2,21 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 import { ContactDto } from './dto/contact.dto';
 import { ContactMessage } from './contact.entity';
+import { MailService } from '../../mail/mail.service';
 
 @Injectable()
 export class ContactService {
   private readonly logger = new Logger(ContactService.name);
-  private readonly transporter: nodemailer.Transporter;
   private readonly toEmail: string;
-  private readonly fromEmail: string;
 
   constructor(
     config: ConfigService,
+    private readonly mail: MailService,
     @InjectRepository(ContactMessage)
     private readonly repo: Repository<ContactMessage>,
   ) {
-    this.fromEmail = config.get<string>('smtp.user');
-    this.transporter = nodemailer.createTransport({
-      host: config.get<string>('smtp.host'),
-      port: config.get<number>('smtp.port'),
-      secure: config.get<boolean>('smtp.secure'),
-      auth: {
-        user: this.fromEmail,
-        pass: config.get<string>('smtp.pass'),
-      },
-    });
     this.toEmail = config.get<string>('smtp.contactToEmail');
   }
 
@@ -46,8 +35,7 @@ export class ContactService {
       ? `Membership inquiry from ${dto.name}`
       : `New message from ${dto.name}`;
 
-    await this.transporter.sendMail({
-      from: `<${this.fromEmail}>`,
+    await this.mail.sendMail({
       replyTo: `"${dto.name}" <${dto.email}>`,
       to: this.toEmail,
       subject: subjectLine,

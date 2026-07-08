@@ -6,6 +6,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
+import { MailService } from './mail/mail.service';
 
 const logger = new Logger('HTTP');
 
@@ -41,6 +42,10 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization',
   });
+
+  // Verify the SMTP connection on boot and log the outcome. Non-fatal: a broken
+  // mail connection must not prevent the server from starting.
+  await app.get(MailService).verifyConnection();
 
   const port = config.get<number>('port');
   await app.listen(port);

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApiModule } from './api/api.module';
+import { MailModule } from './mail/mail.module';
 import Configuration from './configs/global.configs';
 import {DataSourceOptions} from "typeorm";
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -18,6 +19,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     },
     inject: [ConfigService],
   }),
+    MailModule,
     ApiModule,
   ],
 })

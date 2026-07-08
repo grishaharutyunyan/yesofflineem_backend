@@ -208,7 +208,6 @@ export class OrdersService {
 
     if (applied.justApplied) {
       await this.mail.sendCustomerConfirmation(applied.order);
-      await this.mail.sendAdminNotification(applied.order);
     }
     return applied.order;
   }

@@ -63,7 +63,7 @@ describe('OrdersService.checkout', () => {
     };
     const eventRepo = { findOne: jest.fn(async () => event) };
     const epg = { register: jest.fn(async () => ({ orderId: 'oid', formUrl: 'https://epg/p/1' })) };
-    const mail = { sendCustomerConfirmation: jest.fn(), sendAdminNotification: jest.fn() };
+    const mail = { sendCustomerConfirmation: jest.fn() };
     const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any);
     return { svc, orderRepo, eventRepo, epg, mail, eventRow, savedOrders };
   }
@@ -98,7 +98,6 @@ describe('OrdersService.checkout', () => {
     // The real markPaid transaction ran: capacity applied once, emails sent once.
     expect(eventRow.bookedCount).toBe(1);
     expect(mail.sendCustomerConfirmation).toHaveBeenCalledTimes(1);
-    expect(mail.sendAdminNotification).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -160,7 +159,7 @@ describe('OrdersService.verify idempotency', () => {
         panMasked: '411111**1111',
       })),
     };
-    const mail = { sendCustomerConfirmation: jest.fn(), sendAdminNotification: jest.fn() };
+    const mail = { sendCustomerConfirmation: jest.fn() };
     const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any);
     return { svc, epg, mail, eventRow, orderRow, orderRepo, managerMock };
   }
@@ -173,7 +172,6 @@ describe('OrdersService.verify idempotency', () => {
     expect(eventRow.bookedCount).toBe(guests); // 0 -> 2
     expect(orderRow.capacityApplied).toBe(true);
     expect(mail.sendCustomerConfirmation).toHaveBeenCalledTimes(1);
-    expect(mail.sendAdminNotification).toHaveBeenCalledTimes(1);
 
     // Fix A regression guard: verify() must NOT persist the stale unlocked
     // snapshot via the top-level repo. All PAID writes go through markPaid's
@@ -196,7 +194,6 @@ describe('OrdersService.verify idempotency', () => {
     expect(second.status).toBe(OrderStatus.PAID);
     expect(eventRow.bookedCount).toBe(guests); // unchanged — guard held
     expect(mail.sendCustomerConfirmation).toHaveBeenCalledTimes(1);
-    expect(mail.sendAdminNotification).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -227,7 +224,7 @@ describe('OrdersService.verify non-PAID', () => {
         panMasked: null,
       })),
     };
-    const mail = { sendCustomerConfirmation: jest.fn(), sendAdminNotification: jest.fn() };
+    const mail = { sendCustomerConfirmation: jest.fn() };
     const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any);
 
     const res = await svc.verify('on-1');
@@ -244,7 +241,6 @@ describe('OrdersService.verify non-PAID', () => {
     expect(orderRepo.save).not.toHaveBeenCalled();
     expect(orderRepo.manager.transaction).not.toHaveBeenCalled();
     expect(mail.sendCustomerConfirmation).not.toHaveBeenCalled();
-    expect(mail.sendAdminNotification).not.toHaveBeenCalled();
   });
 });
 
@@ -279,7 +275,7 @@ describe('OrdersService.refund / reverse', () => {
     };
     const eventRepo = { findOne: jest.fn() };
     const epg = { refund: jest.fn(async () => undefined), reverse: jest.fn(async () => undefined) };
-    const mail = { sendCustomerConfirmation: jest.fn(), sendAdminNotification: jest.fn() };
+    const mail = { sendCustomerConfirmation: jest.fn() };
     const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any);
     return { svc, epg, eventRow, orderRow, managerMock };
   }
