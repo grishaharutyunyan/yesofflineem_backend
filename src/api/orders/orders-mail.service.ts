@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OrderEntity } from './order.entity';
 import { EventEntity } from '../events/event.entity';
 import { pickLocaleText } from '../events/event-i18n.types';
 import { MailService } from '../../mail/mail.service';
+import { buildTicketPdf } from './ticket-pdf';
 
 interface DetailRow {
   label: string;
@@ -20,16 +20,12 @@ const SANS = "'DM Sans', 'Helvetica Neue', Arial, sans-serif";
 @Injectable()
 export class OrdersMailService {
   private readonly logger = new Logger(OrdersMailService.name);
-  private readonly frontendUrl: string;
 
   constructor(
     private readonly mail: MailService,
-    config: ConfigService,
     @InjectRepository(EventEntity)
     private readonly eventRepo: Repository<EventEntity>,
-  ) {
-    this.frontendUrl = (config.get<string>('frontendUrl') ?? '').replace(/\/$/, '');
-  }
+  ) {}
 
   // Maps ISO 4217 numeric currency codes (as stored by the gateway) to their
   // display code. Falls back to the raw stored value for anything unmapped.
@@ -93,20 +89,7 @@ export class OrdersMailService {
     return this.sectionLabel('Additional guests') + this.detailsTable(rows);
   }
 
-  // ── Event date / place, links & attachments ────────────────────────────────
-
-  /**
-   * Splits 'YYYY-MM-DD' or 'YYYY-MM-DD HH:mm' into a calendar-basic stamp
-   * (e.g. 20260712T190000 for timed, 20260712 for all-day) without any timezone
-   * conversion — the stored wall-clock time is preserved as "floating" time.
-   */
-  private calStamp(value: string | undefined): { stamp: string; dateOnly: boolean } {
-    const m = (value ?? '').match(/(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
-    if (!m) return { stamp: '', dateOnly: true };
-    const [, y, mo, d, h, mi] = m;
-    if (h == null) return { stamp: `${y}${mo}${d}`, dateOnly: true };
-    return { stamp: `${y}${mo}${d}T${h}${mi}00`, dateOnly: false };
-  }
+  // ── Event date / place ─────────────────────────────────────────────────────
 
   /** Human "when", e.g. "Sat, 12 Jul 2026 · 19:00" (or date-only). */
   private formatEventWhen(event: EventEntity): string {
@@ -148,135 +131,6 @@ export class OrdersMailService {
           ${row('📍', 'Where', where)}
         </table>
       </div>`;
-  }
-
-  private googleCalUrl(event: EventEntity, order: OrderEntity, title: string): string {
-    const start = this.calStamp(event.dates?.start);
-    const end = this.calStamp(event.dates?.end);
-    const dates = `${start.stamp}/${end.stamp || start.stamp}`;
-    const params = new URLSearchParams({
-      action: 'TEMPLATE',
-      text: title,
-      dates,
-      location: this.locationText(event),
-      details: `Booking reference: ${order.orderNumber} · Guests: ${order.guests}`,
-    });
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
-  }
-
-  private mapsUrl(event: EventEntity): string {
-    const c = event.coordinates;
-    if (c && typeof c.lat === 'number' && typeof c.lng === 'number') {
-      return `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}`;
-    }
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(this.locationText(event))}`;
-  }
-
-  /** The confirmation page where the customer's ticket/booking lives. */
-  private ticketUrl(order: OrderEntity): string {
-    return `${this.frontendUrl}/en/events/${order.eventSlug}/confirmed?orderNumber=${encodeURIComponent(order.orderNumber)}`;
-  }
-
-  private button(href: string, label: string, primary: boolean): string {
-    const bg = primary ? '#2d2d2d' : '#ffffff';
-    const color = primary ? '#ffffff' : '#2d2d2d';
-    return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px;">
-        <tr><td align="center" style="border:1px solid #2d2d2d;background:${bg};">
-          <a href="${href}" target="_blank" style="display:block;padding:13px 20px;font-family:${SANS};font-size:12px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;color:${color};">${label}</a>
-        </td></tr>
-      </table>`;
-  }
-
-  private actionsBlock(event: EventEntity, order: OrderEntity, title: string): string {
-    return (
-      this.sectionLabel('Before you go') +
-      this.button(this.googleCalUrl(event, order, title), 'Add to calendar', true) +
-      this.button(this.mapsUrl(event), 'See map', false) +
-      this.button(this.ticketUrl(order), 'Download ticket', false) +
-      `<p style="margin:8px 0 0;font-family:${SANS};font-size:12px;color:#999999;line-height:1.6;">Your ticket and a calendar invite are also attached to this email.</p>`
-    );
-  }
-
-  private icsEscape(text: string): string {
-    return (text ?? '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
-  }
-
-  private nowUtcStamp(): string {
-    return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  }
-
-  private plusOneDay(dateStamp: string): string {
-    const y = +dateStamp.slice(0, 4), mo = +dateStamp.slice(4, 6) - 1, d = +dateStamp.slice(6, 8);
-    const dt = new Date(Date.UTC(y, mo, d + 1));
-    const p = (n: number) => String(n).padStart(2, '0');
-    return `${dt.getUTCFullYear()}${p(dt.getUTCMonth() + 1)}${p(dt.getUTCDate())}`;
-  }
-
-  /** A minimal RFC-5545 calendar invite (floating local time). */
-  private buildIcs(event: EventEntity, order: OrderEntity, title: string): string {
-    const start = this.calStamp(event.dates?.start);
-    const end = this.calStamp(event.dates?.end);
-    const dtStart = start.dateOnly ? `DTSTART;VALUE=DATE:${start.stamp}` : `DTSTART:${start.stamp}`;
-    const endStamp = start.dateOnly
-      ? this.plusOneDay(end.stamp || start.stamp)
-      : end.stamp || start.stamp;
-    const dtEnd = start.dateOnly ? `DTEND;VALUE=DATE:${endStamp}` : `DTEND:${endStamp}`;
-    return [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//yesofflineem//booking//EN',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'BEGIN:VEVENT',
-      `UID:${order.orderNumber}@yesofflineem`,
-      `DTSTAMP:${this.nowUtcStamp()}`,
-      dtStart,
-      dtEnd,
-      `SUMMARY:${this.icsEscape(title)}`,
-      `LOCATION:${this.icsEscape(this.locationText(event))}`,
-      `DESCRIPTION:${this.icsEscape(`Booking reference: ${order.orderNumber} · Guests: ${order.guests}`)}`,
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ].join('\r\n');
-  }
-
-  /** A self-contained, printable branded ticket (delivered as an attachment). */
-  private buildTicketHtml(order: OrderEntity, event: EventEntity | null, title: string): string {
-    const when = event ? this.formatEventWhen(event) : '';
-    const where = event ? this.locationText(event) : '';
-    const guestName = `${order.firstName} ${order.lastName ?? ''}`.trim();
-    const line = (label: string, value: string) =>
-      value
-        ? `<tr>
-             <td style="padding:9px 0;border-bottom:1px solid #eee;font-family:${SANS};font-size:12px;color:#888;">${label}</td>
-             <td align="right" style="padding:9px 0;border-bottom:1px solid #eee;font-family:${SANS};font-size:14px;font-weight:600;color:#0a0a0a;">${value}</td>
-           </tr>`
-        : '';
-    return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"/><title>Ticket — ${title}</title></head>
-<body style="margin:0;background:#f2f1ed;font-family:${SANS};">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px;">
-    <table role="presentation" width="440" cellpadding="0" cellspacing="0" style="width:440px;max-width:440px;background:#ffffff;border:1px solid #e6e4de;">
-      <tr><td align="center" style="padding:28px 32px 20px;border-bottom:1px dashed #d8d6cf;">
-        <span style="font-family:${SANS};font-size:22px;color:#0a0a0a;"><span style="font-weight:300;">yes</span><span style="font-weight:700;">offline</span><span style="font-weight:300;font-style:italic;color:#888;">em</span></span>
-        <div style="font-family:${SANS};font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:#888;margin-top:10px;">Admission ticket</div>
-      </td></tr>
-      <tr><td style="padding:26px 32px 30px;">
-        <h1 style="margin:0 0 18px;font-family:${SERIF};font-size:26px;font-weight:500;color:#0a0a0a;line-height:1.15;">${title}</h1>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eee;">
-          ${line('When', when)}
-          ${line('Where', where)}
-          ${line('Guest', guestName)}
-          ${line('Guests', String(order.guests))}
-          ${line('Reference', order.orderNumber)}
-        </table>
-        <div style="margin-top:22px;text-align:center;font-family:'Courier New',monospace;font-size:16px;letter-spacing:0.32em;color:#0a0a0a;background:#f5f4f0;padding:14px;border:1px solid #e6e4de;">${order.orderNumber}</div>
-        <p style="margin:16px 0 0;font-family:${SANS};font-size:11px;color:#999;text-align:center;line-height:1.6;">Present this reference at the door. Print this page or save it as PDF.</p>
-      </td></tr>
-    </table>
-  </td></tr></table>
-</body></html>`;
   }
 
   /** Wraps content in the branded email shell (header logo, card, footer). */
@@ -343,20 +197,19 @@ export class OrdersMailService {
         { label: 'Reference', value: order.orderNumber },
       ]) +
       this.guestBlock(order) +
-      (event ? this.actionsBlock(event, order, title) : '');
+      `<p style="margin:22px 0 0;font-family:${SANS};font-size:13px;color:#888888;line-height:1.6;">📄 Your booking confirmation is attached to this email as a PDF — please have it ready at the door.</p>`;
 
-    const attachments: { filename: string; content: string; contentType: string }[] = [];
-    if (event) {
-      attachments.push({
-        filename: 'add-to-calendar.ics',
-        content: this.buildIcs(event, order, title),
-        contentType: 'text/calendar; charset=utf-8; method=PUBLISH',
-      });
-    }
-    attachments.push({
-      filename: `ticket-${order.orderNumber}.html`,
-      content: this.buildTicketHtml(order, event, title),
-      contentType: 'text/html; charset=utf-8',
+    // The ticket is delivered only as a downloadable PDF attachment.
+    const ticketPdf = await buildTicketPdf({
+      title,
+      when: event ? this.formatEventWhen(event) : '',
+      where: event ? this.locationText(event) : '',
+      guestName: `${order.firstName} ${order.lastName ?? ''}`.trim(),
+      guests: order.guests,
+      reference: order.orderNumber,
+    }).catch((err) => {
+      this.logger.error(`Failed to build ticket PDF for ${order.orderNumber}`, err as Error);
+      return null;
     });
 
     try {
@@ -364,7 +217,9 @@ export class OrdersMailService {
         to: order.email,
         subject: `Booking confirmed — ${title}`,
         html: this.layout(`Your reservation for ${title} is confirmed.`, "You're booked", inner),
-        attachments,
+        attachments: ticketPdf
+          ? [{ filename: `booking-confirmation-${order.orderNumber}.pdf`, content: ticketPdf, contentType: 'application/pdf' }]
+          : [],
       });
     } catch (err) {
       this.logger.error(`Failed to send customer confirmation for ${order.orderNumber}`, err as Error);
