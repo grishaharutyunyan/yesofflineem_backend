@@ -12,7 +12,7 @@ export interface IGlobalConfigs {
     password: string;
     apiKey: string;
   };
-  openRouter: {
+  openai: {
     apiKey: string;
     model: string;
   };

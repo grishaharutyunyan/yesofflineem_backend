@@ -44,10 +44,9 @@ export class ChatService {
     private readonly events: EventsService,
   ) {
     this.openai = new OpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: config.get<string>('openRouter.apiKey'),
+      apiKey: config.get<string>('openai.apiKey'),
     });
-    this.model = config.get<string>('openRouter.model');
+    this.model = config.get<string>('openai.model');
   }
 
   createSession(): string {
@@ -74,7 +73,8 @@ export class ChatService {
         messages,
         tools: agentTools as OpenAI.Chat.Completions.ChatCompletionTool[],
         tool_choice: 'auto',
-        max_tokens: 400,
+        max_completion_tokens: 1000,
+        reasoning_effort: 'minimal',
         stream: false,
       });
 
@@ -145,7 +145,8 @@ export class ChatService {
         const stream = await this.openai.chat.completions.create({
           model: this.model,
           messages: toolMessages,
-          max_tokens: 400,
+          max_completion_tokens: 1000,
+          reasoning_effort: 'minimal',
           stream: true,
         });
 
@@ -157,7 +158,8 @@ export class ChatService {
         const stream = await this.openai.chat.completions.create({
           model: this.model,
           messages,
-          max_tokens: 400,
+          max_completion_tokens: 1000,
+          reasoning_effort: 'minimal',
           stream: true,
         });
 
@@ -177,7 +179,7 @@ export class ChatService {
       };
     } catch (err) {
       throw new InternalServerErrorException(
-        err instanceof Error ? err.message : 'OpenRouter request failed',
+        err instanceof Error ? err.message : 'OpenAI request failed',
       );
     }
   }

@@ -26,9 +26,9 @@ export default () =>
       password: process.env.ADMIN_PASSWORD,
       apiKey: process.env.ADMIN_API_KEY,
     },
-    openRouter: {
-      apiKey: process.env.OPENROUTER_API_KEY,
-      model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct',
+    openai: {
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_MODEL || 'gpt-5',
     },
     smtp: {
       host: process.env.SMTP_HOST,
