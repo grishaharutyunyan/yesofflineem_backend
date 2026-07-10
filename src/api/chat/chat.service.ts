@@ -36,6 +36,7 @@ export interface ChatResponse {
 export class ChatService {
   private readonly openai: OpenAI;
   private readonly model: string;
+  private readonly reasoningEffortParams: { reasoning_effort: 'minimal' } | Record<string, never>;
 
   constructor(
     private readonly config: ConfigService,
@@ -47,6 +48,10 @@ export class ChatService {
       apiKey: config.get<string>('openai.apiKey'),
     });
     this.model = config.get<string>('openai.model');
+    // reasoning_effort is only accepted by reasoning-capable models (gpt-5*, o1*, o3*, o4-mini*);
+    // sending it to gpt-4* models causes OpenAI to reject the request with a 400.
+    const supportsReasoningEffort = /^(gpt-5|o1|o3|o4-mini)/.test(this.model);
+    this.reasoningEffortParams = supportsReasoningEffort ? { reasoning_effort: 'minimal' } : {};
   }
 
   createSession(): string {
@@ -74,7 +79,7 @@ export class ChatService {
         tools: agentTools as OpenAI.Chat.Completions.ChatCompletionTool[],
         tool_choice: 'auto',
         max_completion_tokens: 1000,
-        reasoning_effort: 'minimal',
+        ...this.reasoningEffortParams,
         stream: false,
       });
 
@@ -146,7 +151,7 @@ export class ChatService {
           model: this.model,
           messages: toolMessages,
           max_completion_tokens: 1000,
-          reasoning_effort: 'minimal',
+          ...this.reasoningEffortParams,
           stream: true,
         });
 
@@ -159,7 +164,7 @@ export class ChatService {
           model: this.model,
           messages,
           max_completion_tokens: 1000,
-          reasoning_effort: 'minimal',
+          ...this.reasoningEffortParams,
           stream: true,
         });
 
