@@ -43,7 +43,7 @@ export class EventsService extends OrmService<EventEntity> {
   findUpcoming(limit = 3): Promise<EventEntity[]> {
     return this.getQueryBuilder()
       .where('event.status = :status', { status: EventStatus.ACTIVE })
-      .andWhere("(event.dates->>'start')::timestamp > NOW()")
+      // .andWhere("(event.dates->>'start')::timestamp > NOW()")
       .orderBy("(event.dates->>'start')::timestamp", 'ASC')
       .limit(limit)
       .getMany();
