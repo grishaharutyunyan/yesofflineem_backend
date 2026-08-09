@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { TokenExpiredError } from 'jsonwebtoken';
 
 @Injectable()
 export class JwtGuard implements CanActivate {
@@ -15,18 +16,21 @@ export class JwtGuard implements CanActivate {
     const auth = req.headers['authorization'] ?? '';
 
     if (!auth.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing token');
+      throw new UnauthorizedException({ code: 'ACCESS_TOKEN_MISSING', message: 'Missing token' });
     }
 
     let payload: { sub: number; email: string; role: string };
     try {
       payload = this.jwtService.verify(auth.slice(7));
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token');
+    } catch (err) {
+      if (err instanceof TokenExpiredError) {
+        throw new UnauthorizedException({ code: 'ACCESS_TOKEN_EXPIRED', message: 'Access token expired' });
+      }
+      throw new UnauthorizedException({ code: 'ACCESS_TOKEN_INVALID', message: 'Invalid token' });
     }
 
     if (payload.role !== 'admin') {
-      throw new UnauthorizedException('Admin access required');
+      throw new UnauthorizedException({ code: 'ACCESS_TOKEN_INVALID', message: 'Admin access required' });
     }
 
     req.user = payload;

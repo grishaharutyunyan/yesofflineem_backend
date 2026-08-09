@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import * as path from 'path';
+import * as cookieParser from 'cookie-parser';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -12,6 +13,8 @@ const logger = new Logger('HTTP');
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  app.use(cookieParser());
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const { method, originalUrl } = req;
@@ -41,6 +44,7 @@ async function bootstrap() {
     origin: frontendUrl,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization',
+    credentials: true,
   });
 
   // Verify the SMTP connection on boot and log the outcome. Non-fatal: a broken
