@@ -47,8 +47,8 @@ export class UpdateEventDto {
   @Type(() => ScheduleItemLocalizedDto)
   schedule?: ScheduleItemLocalizedDto[];
 
-  @IsOptional() @IsObject()
-  host?: EventHost;
+  @IsOptional() @IsArray()
+  hosts?: EventHost[];
 
   @IsOptional() @IsObject()
   coordinates?: EventCoordinates;

@@ -68,8 +68,8 @@ export class CreateEventDto {
   @Type(() => ScheduleItemLocalizedDto)
   schedule: ScheduleItemLocalizedDto[];
 
-  @IsObject()
-  host: EventHost;
+  @IsArray()
+  hosts: EventHost[];
 
   @IsObject()
   coordinates: EventCoordinates;

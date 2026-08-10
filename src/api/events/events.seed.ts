@@ -69,14 +69,16 @@ export const SEED_EVENTS: CreateEventDto[] = [
         },
       },
     ],
-    host: {
-      name: { en: 'Ani Nazaryan', hy: 'Անի Նազարյան' },
-      role: {
-        en: 'Founder & Lead Facilitator',
-        hy: 'Հիմնադիր և գլխավոր համակարգող',
+    hosts: [
+      {
+        name: { en: 'Ani Nazaryan', hy: 'Անի Նազարյան' },
+        role: {
+          en: 'Founder & Lead Facilitator',
+          hy: 'Հիմնադիր և գլխավոր համակարգող',
+        },
+        imageUrl: null,
       },
-      imageUrl: null,
-    },
+    ],
     coordinates: {
       lat: 40.7414,
       lng: 44.8631,
@@ -171,11 +173,13 @@ export const SEED_EVENTS: CreateEventDto[] = [
         sub: { en: 'Plant-based menu, no rush', hy: 'Բուսական մենյու, առանց շտապելու' },
       },
     ],
-    host: {
-      name: { en: 'Varduhi Karapetyan', hy: 'Վարդուհի Կարապետյան' },
-      role: { en: 'Wellness Guide', hy: 'Առողջ ապրելակերպի ուղեկցորդ' },
-      imageUrl: null,
-    },
+    hosts: [
+      {
+        name: { en: 'Varduhi Karapetyan', hy: 'Վարդուհի Կարապետյան' },
+        role: { en: 'Wellness Guide', hy: 'Առողջ ապրելակերպի ուղեկցորդ' },
+        imageUrl: null,
+      },
+    ],
     coordinates: {
       lat: 40.1872,
       lng: 44.5152,
@@ -276,14 +280,16 @@ export const SEED_EVENTS: CreateEventDto[] = [
         },
       },
     ],
-    host: {
-      name: { en: 'Ani Nazaryan', hy: 'Անի Նազարյան' },
-      role: {
-        en: 'Founder & Lead Facilitator',
-        hy: 'Հիմնադիր և գլխավոր համակարգող',
+    hosts: [
+      {
+        name: { en: 'Ani Nazaryan', hy: 'Անի Նազարյան' },
+        role: {
+          en: 'Founder & Lead Facilitator',
+          hy: 'Հիմնադիր և գլխավոր համակարգող',
+        },
+        imageUrl: null,
       },
-      imageUrl: null,
-    },
+    ],
     coordinates: {
       lat: 40.1872,
       lng: 44.5152,
@@ -389,14 +395,16 @@ export const SEED_EVENTS: CreateEventDto[] = [
         sub: { en: 'Arriving back ~18:30', hy: 'Վերադարձ ժամը ~18:30-ին' },
       },
     ],
-    host: {
-      name: { en: 'Ani Nazaryan', hy: 'Անի Նազարյան' },
-      role: {
-        en: 'Founder & Lead Facilitator',
-        hy: 'Հիմնադիր և գլխավոր համակարգող',
+    hosts: [
+      {
+        name: { en: 'Ani Nazaryan', hy: 'Անի Նազարյան' },
+        role: {
+          en: 'Founder & Lead Facilitator',
+          hy: 'Հիմնադիր և գլխավոր համակարգող',
+        },
+        imageUrl: null,
       },
-      imageUrl: null,
-    },
+    ],
     coordinates: {
       lat: 40.1872,
       lng: 44.5152,
@@ -492,11 +500,13 @@ export const SEED_EVENTS: CreateEventDto[] = [
         sub: { en: 'Take your time leaving', hy: 'Մեկնեք առանց շտապելու' },
       },
     ],
-    host: {
-      name: { en: 'Varduhi Karapetyan', hy: 'Վարդուհի Կարապետյան' },
-      role: { en: 'Wellness Guide', hy: 'Առողջ ապրելակերպի ուղեկցորդ' },
-      imageUrl: null,
-    },
+    hosts: [
+      {
+        name: { en: 'Varduhi Karapetyan', hy: 'Վարդուհի Կարապետյան' },
+        role: { en: 'Wellness Guide', hy: 'Առողջ ապրելակերպի ուղեկցորդ' },
+        imageUrl: null,
+      },
+    ],
     coordinates: {
       lat: 40.1872,
       lng: 44.5152,
@@ -601,14 +611,16 @@ export const SEED_EVENTS: CreateEventDto[] = [
         sub: { en: 'Arriving ~18:45', hy: 'Ժամանում մոտ ~18:45-ին' },
       },
     ],
-    host: {
-      name: { en: 'Ani Nazaryan', hy: 'Անի Նազարյան' },
-      role: {
-        en: 'Founder & Lead Facilitator',
-        hy: 'Հիմնադիր և գլխավոր համակարգող',
+    hosts: [
+      {
+        name: { en: 'Ani Nazaryan', hy: 'Անի Նազարյան' },
+        role: {
+          en: 'Founder & Lead Facilitator',
+          hy: 'Հիմնադիր և գլխավոր համակարգող',
+        },
+        imageUrl: null,
       },
-      imageUrl: null,
-    },
+    ],
     coordinates: {
       lat: 40.1872,
       lng: 44.5152,

@@ -54,7 +54,7 @@ export class EventEntity {
   schedule: ScheduleItemLocalized[] | null;
 
   @Column({ type: 'jsonb' })
-  host: EventHost;
+  hosts: EventHost[];
 
   @Column({ type: 'jsonb' })
   coordinates: EventCoordinates;
