@@ -9,7 +9,7 @@ import type {
   LocaleText,
   ScheduleItemLocalized,
 } from '../event-i18n.types';
-import { ScheduleItemLocalizedDto } from './create-event.dto';
+import { EventHostDto, ScheduleItemLocalizedDto } from './create-event.dto';
 
 export class UpdateEventDto {
   @IsOptional() @IsString()
@@ -48,6 +48,8 @@ export class UpdateEventDto {
   schedule?: ScheduleItemLocalizedDto[];
 
   @IsOptional() @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EventHostDto)
   hosts?: EventHost[];
 
   @IsOptional() @IsObject()

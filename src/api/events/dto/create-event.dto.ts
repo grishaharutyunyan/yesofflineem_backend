@@ -30,6 +30,18 @@ export class ScheduleItemLocalizedDto {
   sub: LocaleText;
 }
 
+export class EventHostDto {
+  @IsObject()
+  name: LocaleText;
+
+  @IsObject()
+  role: LocaleText;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string | null;
+}
+
 export class CreateEventDto {
   @IsOptional()
   @IsString()
@@ -69,6 +81,8 @@ export class CreateEventDto {
   schedule: ScheduleItemLocalizedDto[];
 
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EventHostDto)
   hosts: EventHost[];
 
   @IsObject()
