@@ -43,7 +43,7 @@ export function eventSummaryForLang(e: EventEntity, lang: LangCode = 'en'): Even
     hostRole: (e.hosts ?? []).map((h) => pickLocaleText(h?.role, lang)).join(', '),
     spotsLeft: left,
     maxCapacity: e.maxCapacity,
-    priceLabel: e.price === 0 ? 'Free' : `${formatAmd(e.price)} AMD`,
+    priceLabel: e.price === 0 ? '' : `${formatAmd(e.price)} AMD`,
     priceAmd: e.price,
   };
 }
