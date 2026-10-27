@@ -1,4 +1,4 @@
-import { BORDER, FAINT, GUEST_BG, HEAD_BG, INK, MUTED, Weight, createPdf, measure, pageFooters, write } from './pdf-text';
+import { BORDER, FAINT, GUEST_BG, HEAD_BG, INK, MUTED, Weight, createPdf, measure, pageFooters, write, writeCode } from './pdf-text';
 
 export interface ParticipantsPdfInput {
   title: string;
@@ -22,9 +22,9 @@ const COLS = [
   { key: 'idx', label: '#', w: 24 },
   { key: 'name', label: 'NAME', w: 145 },
   { key: 'phone', label: 'PHONE', w: 95 },
-  { key: 'email', label: 'EMAIL', w: 127 },
+  { key: 'email', label: 'EMAIL', w: 117 },
   { key: 'people', label: 'PEOPLE', w: 34 },
-  { key: 'ref', label: 'BOOKING', w: 68 },
+  { key: 'ref', label: 'BOOKING', w: 78 },
 ] as const;
 
 /** Renders a printable check-in list of paid bookings (and their guests) for one event. */
@@ -78,11 +78,13 @@ export function buildParticipantsPdf(input: ParticipantsPdfInput): Promise<Buffe
         const ty = y + 7;
         if (c.key === 'check') {
           doc.lineWidth(0.8).strokeColor('#9ca3af').rect(x + 6, y + 7, 10, 10).stroke();
+        } else if (c.key === 'ref') {
+          if (cells.ref) writeCode(doc, cells.ref, x + 4, y, c.w - 8, ROW_H, MUTED);
         } else {
           const text = cells[c.key] ?? '';
           const indent = opts.guest && c.key === 'name' ? 12 : 0;
           const weight: Weight = c.key === 'name' && !opts.guest ? 'bold' : 'regular';
-          const color = c.key === 'idx' || c.key === 'ref' || opts.guest ? MUTED : INK;
+          const color = c.key === 'idx' || opts.guest ? MUTED : INK;
           if (text) write(doc, text, x + 4 + indent, ty, 8.5, weight, color, c.w - 8 - indent);
         }
         x += c.w;
@@ -102,7 +104,7 @@ export function buildParticipantsPdf(input: ParticipantsPdfInput): Promise<Buffe
         phone: b.phone,
         email: b.email,
         people: String(1 + b.guests.length),
-        ref: b.reference.length > 10 ? b.reference.slice(0, 8) : b.reference,
+        ref: b.reference,
       }, { guest: false });
       b.guests.forEach((g, gi) => {
         drawRow({ name: `› ${g.name}`, phone: g.phone, email: `Guest ${gi + 1} of ${b.name.split(' ')[0]}` }, { guest: true });

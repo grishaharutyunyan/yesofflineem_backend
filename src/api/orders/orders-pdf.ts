@@ -1,4 +1,4 @@
-import { BORDER, FAINT, HEAD_BG, INK, MUTED, Weight, createPdf, measure, pageFooters, write } from './pdf-text';
+import { BORDER, FAINT, HEAD_BG, INK, MUTED, Weight, createPdf, measure, pageFooters, write, writeCode } from './pdf-text';
 
 export interface OrdersPdfInput {
   /** Human summary of the active filters, e.g. ["Event: Pottery Evening #1", "Status: paid"]. */
@@ -24,11 +24,11 @@ const M = 36;
 const ROW_H = 30;
 const COLS = [
   { key: 'idx', label: '#', w: 26 },
-  { key: 'reference', label: 'ORDER', w: 70 },
+  { key: 'reference', label: 'ORDER', w: 80 },
   { key: 'date', label: 'DATE', w: 64 },
   { key: 'customer', label: 'CUSTOMER', w: 160 },
   { key: 'phone', label: 'PHONE', w: 92 },
-  { key: 'event', label: 'EVENT', w: 170 },
+  { key: 'event', label: 'EVENT', w: 160 },
   { key: 'guests', label: 'GUESTS', w: 44 },
   { key: 'amount', label: 'AMOUNT', w: 76 },
   { key: 'status', label: 'STATUS', w: 67.89 },
@@ -86,6 +86,8 @@ export function buildOrdersPdf(input: OrdersPdfInput): Promise<Buffer> {
         // Name on top, email underneath.
         write(doc, o.customer, x + 5, y + 5, 8.5, 'bold', INK, w);
         write(doc, o.email, x + 5, y + 16, 7.5, 'regular', MUTED, w);
+      } else if (c.key === 'reference') {
+        writeCode(doc, o.reference, x + 5, y, w, ROW_H, MUTED);
       } else if (c.key === 'status') {
         const color = STATUS_COLOR[o.status] ?? MUTED;
         doc.circle(x + 8, y + 15, 2.5).fill(color);
@@ -93,7 +95,7 @@ export function buildOrdersPdf(input: OrdersPdfInput): Promise<Buffer> {
       } else {
         const value = c.key === 'idx' ? String(i + 1) : String(o[c.key]);
         const weight: Weight = c.key === 'amount' ? 'bold' : 'regular';
-        const color = c.key === 'idx' || c.key === 'reference' || c.key === 'date' ? MUTED : INK;
+        const color = c.key === 'idx' || c.key === 'date' ? MUTED : INK;
         write(doc, value, x + 5, y + 10, 8.5, weight, color, w);
       }
       x += c.w;

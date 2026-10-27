@@ -57,6 +57,17 @@ export function write(doc: Doc, text: string, x: number, y: number, size: number
   }
 }
 
+/** Writes a booking code in full: one line if it fits, otherwise split in half over two smaller lines. */
+export function writeCode(doc: Doc, code: string, x: number, y: number, width: number, rowH: number, color: string) {
+  if (measure(doc, code, 8.5, 'regular') <= width) {
+    write(doc, code, x, y + rowH / 2 - 5, 8.5, 'regular', color);
+    return;
+  }
+  const half = Math.ceil(code.length / 2);
+  write(doc, code.slice(0, half), x, y + rowH / 2 - 9, 7, 'regular', color);
+  write(doc, code.slice(half), x, y + rowH / 2 + 0.5, 7, 'regular', color);
+}
+
 /** Creates a document with the Noto fonts registered; `done` resolves with the PDF bytes after doc.end(). */
 export function createPdf(options: PDFKit.PDFDocumentOptions): { doc: Doc; done: Promise<Buffer> } {
   const doc = new PDFDocument({ margin: 0, bufferPages: true, ...options });
