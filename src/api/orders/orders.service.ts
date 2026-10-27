@@ -103,7 +103,7 @@ export class OrdersService {
       filters,
       paidTotals,
       orders: items.map((o) => ({
-        reference: o.orderNumber.length > 10 ? o.orderNumber.slice(0, 8) : o.orderNumber,
+        reference: o.orderNumber,
         date: new Date(o.createdAt).toISOString().slice(0, 10),
         customer: [o.firstName, o.lastName].filter(Boolean).join(' ') || '—',
         email: o.email,
