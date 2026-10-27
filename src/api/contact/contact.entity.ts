@@ -22,4 +22,8 @@ export class ContactMessage {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  // Null until an admin marks the message as read.
+  @Column({ type: 'timestamp', nullable: true })
+  readAt: Date | null;
 }

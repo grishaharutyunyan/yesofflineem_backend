@@ -6,6 +6,7 @@ import { EventEntity } from '../events/event.entity';
 import { pickLocaleText } from '../events/event-i18n.types';
 import { MailService } from '../../mail/mail.service';
 import { buildTicketPdf } from './ticket-pdf';
+import { escapeHtml } from '../../mail/escape-html';
 
 interface DetailRow {
   label: string;
@@ -33,11 +34,11 @@ export class OrdersMailService {
     '051': 'AMD',
   };
 
-  private currencyLabel(order: OrderEntity): string {
+  currencyLabel(order: OrderEntity): string {
     return OrdersMailService.CURRENCY_LABELS[order.currency] ?? order.currency;
   }
 
-  private formatAmount(order: OrderEntity): string {
+  formatAmount(order: OrderEntity): string {
     return (order.amount / 100).toLocaleString();
   }
 
@@ -83,8 +84,8 @@ export class OrdersMailService {
     const rows: DetailRow[] = guests.map((g, i) => ({
       label: `Guest ${i + 2}`,
       value:
-        `${g.firstName} ${g.lastName ?? ''}`.trim() +
-        (g.phone ? `<br/><span style="font-weight:400;color:#888888;font-size:13px;">${g.phone}</span>` : ''),
+        escapeHtml(`${g.firstName} ${g.lastName ?? ''}`.trim()) +
+        (g.phone ? `<br/><span style="font-weight:400;color:#888888;font-size:13px;">${escapeHtml(g.phone)}</span>` : ''),
     }));
     return this.sectionLabel('Additional guests') + this.detailsTable(rows);
   }
@@ -92,7 +93,7 @@ export class OrdersMailService {
   // ── Event date / place ─────────────────────────────────────────────────────
 
   /** Human "when", e.g. "Sat, 12 Jul 2026 · 19:00" (or date-only). */
-  private formatEventWhen(event: EventEntity): string {
+  formatEventWhen(event: EventEntity): string {
     const raw = event.dates?.start;
     const m = (raw ?? '').match(/(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
     if (!m) return raw ?? '';
@@ -103,7 +104,7 @@ export class OrdersMailService {
     return hh ? `${date} · ${hh}:${mm}` : date;
   }
 
-  private locationText(event: EventEntity): string {
+  locationText(event: EventEntity): string {
     const name = pickLocaleText(event.location, 'en');
     const address = pickLocaleText(event.coordinates?.address, 'en');
     return [name, address].filter(Boolean).join(' — ');
@@ -235,7 +236,7 @@ export class OrdersMailService {
       .catch(() => null);
 
     const inner =
-      this.paragraph(`Hi ${order.firstName},`) +
+      this.paragraph(`Hi ${escapeHtml(order.firstName)},`) +
       this.paragraph(`Your reservation for <strong style="color:#0a0a0a;">${title}</strong> is confirmed. We can't wait to see you there.`) +
       (event ? this.eventDetailsBlock(event) : '') +
       (event ? this.calendarMapButtons(event, order, title) : '') +
