@@ -31,6 +31,7 @@ export class AdminEventsController {
   async findAll(@Query() query: AdminEventsQueryDto) {
     const params = parseGetPaginationParams(query);
     if (query.status) params.filter = { ...params.filter, status: query.status };
+    if (query.when) params.filter = { ...params.filter, when: query.when };
     const result = await this.eventsService.paginate(params);
     return getResponseForPagination(result, params);
   }

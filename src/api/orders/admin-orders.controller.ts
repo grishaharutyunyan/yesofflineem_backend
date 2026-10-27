@@ -6,8 +6,10 @@ import {
   ParseIntPipe,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { JwtGuard } from '../admin/guards/jwt.guard';
 import { OrdersService } from './orders.service';
 import { AdminOrdersQueryDto } from './dto/admin-orders-query.dto';
@@ -62,6 +64,28 @@ export class AdminOrdersController {
       ].map(csvCell).join(','),
     );
     return [header.map(csvCell).join(','), ...rows].join('\n');
+  }
+
+  @Get('export-pdf')
+  async exportPdf(@Query() query: AdminOrdersQueryDto, @Res() res: Response) {
+    const pdf = await this.orders.ordersPdf(applyFilters(parseGetPaginationParams(query), query));
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="orders-${new Date().toISOString().slice(0, 10)}.pdf"`,
+      'Content-Length': String(pdf.length),
+    });
+    res.end(pdf);
+  }
+
+  @Get('participants-pdf')
+  async participantsPdf(@Query('eventId', ParseIntPipe) eventId: number, @Res() res: Response) {
+    const { pdf, slug } = await this.orders.participantsPdf(eventId);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="participants-${slug.replace(/[^a-z0-9-]/gi, '')}.pdf"`,
+      'Content-Length': String(pdf.length),
+    });
+    res.end(pdf);
   }
 
   @Get(':id')

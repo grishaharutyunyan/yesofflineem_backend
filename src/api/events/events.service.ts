@@ -28,11 +28,16 @@ export class EventsService extends OrmService<EventEntity> {
   async paginate(options: IPaginationDTO<EventEntity>): Promise<IPaginationData<EventEntity>> {
     const qb = this.getQueryBuilder();
 
-    if (options.filter?.status) {
-      qb.where('event.status = :status', { status: options.filter.status });
+    const filter = options.filter as { status?: string; when?: 'upcoming' | 'past' } | undefined;
+    if (filter?.status) {
+      qb.andWhere('event.status = :status', { status: filter.status });
     }
+    // Upcoming = starts today or later (soonest first); past = started before today (latest first).
+    if (filter?.when === 'upcoming') qb.andWhere("(event.dates->>'start')::date >= CURRENT_DATE");
+    if (filter?.when === 'past') qb.andWhere("(event.dates->>'start')::date < CURRENT_DATE");
+    const order = filter?.when === 'upcoming' ? 'ASC' : (options.order as 'ASC' | 'DESC');
 
-    qb.orderBy("(event.dates->>'start')::timestamp", options.order as 'ASC' | 'DESC')
+    qb.orderBy("(event.dates->>'start')::timestamp", order)
       .skip(options.offset)
       .take(options.limit);
 

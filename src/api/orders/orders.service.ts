@@ -14,6 +14,9 @@ import { EventEntity } from '../events/event.entity';
 import { EventStatus } from '../../constants/enums/event.enums';
 import { EpgService, EpgStatusResult, statusFromEpg } from './epg.service';
 import { OrdersMailService } from './orders-mail.service';
+import { buildParticipantsPdf } from './participants-pdf';
+import { buildOrdersPdf } from './orders-pdf';
+import { pickLocaleText } from '../events/event-i18n.types';
 import { CheckoutDto } from './dto/checkout.dto';
 import { IPaginationData, IPaginationDTO } from '../../constants/interfaces/pagination.interfaces';
 
@@ -50,6 +53,67 @@ export class OrdersService {
     const order = await this.orderRepo.findOne({ where: { id } });
     if (!order) throw new NotFoundException(`Order #${id} not found`);
     return order;
+  }
+
+  /** Check-in PDF of an event's paid bookings and their guests, oldest booking first. */
+  async participantsPdf(eventId: number): Promise<{ pdf: Buffer; slug: string }> {
+    const event = await this.eventRepo.findOne({ where: { id: eventId } });
+    if (!event) throw new NotFoundException(`Event #${eventId} not found`);
+    const orders = await this.orderRepo.find({
+      where: { eventId, status: OrderStatus.PAID },
+      order: { createdAt: 'ASC' },
+    });
+    const fullName = (first?: string | null, last?: string | null) => [first, last].filter(Boolean).join(' ') || '—';
+    const pdf = await buildParticipantsPdf({
+      title: pickLocaleText(event.title, 'en') || event.slug,
+      when: this.mail.formatEventWhen(event),
+      where: this.mail.locationText(event),
+      bookings: orders.map((o) => ({
+        name: fullName(o.firstName, o.lastName),
+        phone: o.phone ?? '—',
+        email: o.email,
+        reference: o.orderNumber,
+        guests: (o.guestDetails ?? []).map((g) => ({ name: fullName(g.firstName, g.lastName), phone: g.phone ?? '—' })),
+      })),
+    });
+    return { pdf, slug: event.slug };
+  }
+
+  /** PDF of the orders matching the admin list filters (same filters as the CSV export). */
+  async ordersPdf(options: IPaginationDTO<OrderEntity>): Promise<Buffer> {
+    const { items } = await this.paginate({ ...options, offset: 0, limit: 10000 });
+    const filter = (options.filter ?? {}) as { status?: string; eventId?: number; search?: string };
+
+    const filters: string[] = [];
+    if (filter.eventId) {
+      const event = await this.eventRepo.findOne({ where: { id: filter.eventId } });
+      filters.push(`Event: ${event ? pickLocaleText(event.title, 'en') || event.slug : `#${filter.eventId}`}`);
+    }
+    if (filter.status) filters.push(`Status: ${filter.status}`);
+    if (filter.search) filters.push(`Search: "${filter.search}"`);
+
+    const paidTotals: Record<string, number> = {};
+    for (const o of items) {
+      if (o.status !== OrderStatus.PAID) continue;
+      const cur = this.mail.currencyLabel(o);
+      paidTotals[cur] = (paidTotals[cur] ?? 0) + o.amount / 100;
+    }
+
+    return buildOrdersPdf({
+      filters,
+      paidTotals,
+      orders: items.map((o) => ({
+        reference: o.orderNumber.length > 10 ? o.orderNumber.slice(0, 8) : o.orderNumber,
+        date: new Date(o.createdAt).toISOString().slice(0, 10),
+        customer: [o.firstName, o.lastName].filter(Boolean).join(' ') || '—',
+        email: o.email,
+        phone: o.phone ?? '—',
+        event: pickLocaleText(o.eventTitle, 'en') || o.eventSlug,
+        guests: o.guests,
+        amount: `${this.mail.currencyLabel(o)} ${this.mail.formatAmount(o)}`,
+        status: o.status,
+      })),
+    });
   }
 
   async findByOrderNumber(orderNumber: string): Promise<OrderEntity> {
@@ -281,7 +345,13 @@ export class OrdersService {
     if (filter?.status) qb.andWhere('order.status = :status', { status: filter.status });
     if (filter?.eventId) qb.andWhere('order.eventId = :eventId', { eventId: filter.eventId });
     if (filter?.search) {
-      qb.andWhere('(order.email ILIKE :s OR order.orderNumber ILIKE :s)', { s: `%${filter.search}%` });
+      // Matches email, order number, phone, first/last name, or "First Last" typed together.
+      qb.andWhere(
+        `(order.email ILIKE :s OR order.orderNumber ILIKE :s OR order.phone ILIKE :s
+          OR order.firstName ILIKE :s OR order.lastName ILIKE :s
+          OR CONCAT_WS(' ', order.firstName, order.lastName) ILIKE :s)`,
+        { s: `%${filter.search.trim()}%` },
+      );
     }
 
     qb.orderBy('order.createdAt', (options.order as 'ASC' | 'DESC') ?? 'DESC')

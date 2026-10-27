@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { ContactDto } from './dto/contact.dto';
 import { ContactMessage } from './contact.entity';
 import { MailService } from '../../mail/mail.service';
+import { escapeHtml } from '../../mail/escape-html';
 
 @Injectable()
 export class ContactService {
@@ -40,13 +41,14 @@ export class ContactService {
       to: this.toEmail,
       subject: subjectLine,
       text: dto.message,
+      // Every field comes from the public contact form, so escape it before building HTML.
       html: `
-        <p><strong>Source:</strong> ${source}</p>
-        <p><strong>Name:</strong> ${dto.name}</p>
-        <p><strong>Email:</strong> <a href="mailto:${dto.email}">${dto.email}</a></p>
-        ${dto.phone ? `<p><strong>Phone:</strong> ${dto.phone}</p>` : ''}
+        <p><strong>Source:</strong> ${escapeHtml(source)}</p>
+        <p><strong>Name:</strong> ${escapeHtml(dto.name)}</p>
+        <p><strong>Email:</strong> <a href="mailto:${escapeHtml(dto.email)}">${escapeHtml(dto.email)}</a></p>
+        ${dto.phone ? `<p><strong>Phone:</strong> ${escapeHtml(dto.phone)}</p>` : ''}
         <hr/>
-        <p style="white-space:pre-line">${dto.message}</p>
+        <p style="white-space:pre-line">${escapeHtml(dto.message)}</p>
       `,
     });
 
@@ -56,5 +58,35 @@ export class ContactService {
   async findAll(source?: string): Promise<ContactMessage[]> {
     const where = source ? { source } : {};
     return this.repo.find({ where, order: { createdAt: 'DESC' } });
+  }
+
+  async unreadCounts(): Promise<{ contact: number; membership: number; total: number }> {
+    const rows: { source: string; count: string }[] = await this.repo
+      .createQueryBuilder('m')
+      .select('m.source', 'source')
+      .addSelect('COUNT(*)', 'count')
+      .where('m.readAt IS NULL')
+      .groupBy('m.source')
+      .getRawMany();
+    const by = Object.fromEntries(rows.map((r) => [r.source, Number(r.count)]));
+    const contact = by.contact ?? 0;
+    const membership = by.membership ?? 0;
+    return { contact, membership, total: contact + membership };
+  }
+
+  async setRead(id: number, read: boolean): Promise<void> {
+    await this.repo.update(id, { readAt: read ? new Date() : null });
+  }
+
+  async remove(id: number): Promise<void> {
+    const res = await this.repo.delete(id);
+    if (!res.affected) throw new NotFoundException(`Message ${id} not found`);
+  }
+
+  async markAllRead(source?: string): Promise<void> {
+    await this.repo.update(
+      source ? { source, readAt: IsNull() } : { readAt: IsNull() },
+      { readAt: new Date() },
+    );
   }
 }
