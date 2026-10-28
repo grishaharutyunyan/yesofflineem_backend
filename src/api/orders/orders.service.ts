@@ -12,13 +12,15 @@ import { OrderEntity } from './order.entity';
 import { OrderStatus } from '../../constants/enums/order.enums';
 import { EventEntity } from '../events/event.entity';
 import { EventStatus } from '../../constants/enums/event.enums';
-import { EpgService, EpgStatusResult, statusFromEpg } from './epg.service';
+import { EpgService, EpgStatusResult, PAYMENT_PAGE_MINUTES, statusFromEpg } from './epg.service';
 import { OrdersMailService } from './orders-mail.service';
 import { buildParticipantsPdf } from './participants-pdf';
 import { buildOrdersPdf } from './orders-pdf';
 import { pickLocaleText } from '../events/event-i18n.types';
 import { CheckoutDto } from './dto/checkout.dto';
 import { IPaginationData, IPaginationDTO } from '../../constants/interfaces/pagination.interfaces';
+import { PromoCodesService, applyDiscount, INVALID_PROMO } from '../promo-codes/promo-codes.service';
+import { PromoCodeEntity } from '../promo-codes/promo-code.entity';
 
 interface EpgConfig { currency: string; amountMultiplier: number; }
 
@@ -34,14 +36,43 @@ export class OrdersService {
     private readonly config: ConfigService,
     private readonly epg: EpgService,
     private readonly mail: OrdersMailService,
+    private readonly promos: PromoCodesService,
   ) {}
 
   private get epgConfig(): EpgConfig {
     return this.config.get<EpgConfig>('epg');
   }
 
-  computeAmount(price: number, guests: number): number {
-    return price * guests * this.epgConfig.amountMultiplier;
+  computeAmount(price: number, guests: number, discountPercent = 0): number {
+    return applyDiscount(price * guests, discountPercent) * this.epgConfig.amountMultiplier;
+  }
+
+  /** Public pre-checkout check so the booking page can preview the discount. */
+  async checkPromo(slug: string, code: string, client: string): Promise<{ code: string; discountPercent: number }> {
+    const event = await this.eventRepo.findOne({ where: { slug } });
+    if (!event) throw new NotFoundException(`Event "${slug}" not found`);
+    if (!event.promoEnabled) throw new BadRequestException('Promo codes are not accepted for this event');
+    const promo = await this.promos.resolve(code, event.id, client);
+    return { code: promo.code, discountPercent: promo.discountPercent };
+  }
+
+  /**
+   * Saves the pending order only if the promo still has a free use, counting paid uses
+   * plus pending orders inside the bank's payment window. The promo row lock serializes
+   * concurrent checkouts so two customers can't both take the last use.
+   */
+  private reservePromoUse(order: OrderEntity, promo: PromoCodeEntity): Promise<OrderEntity> {
+    return this.orderRepo.manager.transaction(async (m) => {
+      const locked = await m.findOne(PromoCodeEntity, { where: { id: promo.id }, lock: { mode: 'pessimistic_write' } });
+      const held = await m.createQueryBuilder(OrderEntity, 'o')
+        .where('o.promoCode = :code AND o.status = :status', { code: promo.code, status: OrderStatus.PENDING })
+        .andWhere(`o.createdAt > LOCALTIMESTAMP - make_interval(mins => :mins)`, { mins: PAYMENT_PAGE_MINUTES })
+        .getCount();
+      if (!locked || (locked.maxUses != null && locked.usedCount + held >= locked.maxUses)) {
+        throw new BadRequestException(INVALID_PROMO);
+      }
+      return m.save(order);
+    });
   }
 
   private buildReturnUrl(locale: string, slug: string, orderNumber: string): string {
@@ -122,7 +153,7 @@ export class OrdersService {
     return order;
   }
 
-  async checkout(dto: CheckoutDto): Promise<{ orderNumber: string; formUrl?: string; redirectTo?: string }> {
+  async checkout(dto: CheckoutDto, client = ''): Promise<{ orderNumber: string; formUrl?: string; redirectTo?: string }> {
     this.logger.log(`checkout start: slug=${dto.slug} guests=${dto.guests} email=${dto.email} locale=${dto.locale}`);
     const event = await this.eventRepo.findOne({ where: { slug: dto.slug } });
     if (!event) throw new NotFoundException(`Event "${dto.slug}" not found`);
@@ -134,7 +165,12 @@ export class OrdersService {
       throw new BadRequestException('Not enough spots left for this event');
     }
 
-    const amount = this.computeAmount(event.price, dto.guests);
+    // Discount is always re-resolved server-side; the client only sends the code.
+    if (dto.promoCode && !event.promoEnabled) {
+      throw new BadRequestException('Promo codes are not accepted for this event');
+    }
+    const promo = dto.promoCode ? await this.promos.resolve(dto.promoCode, event.id, client) : null;
+    const amount = this.computeAmount(event.price, dto.guests, promo?.discountPercent);
     // ARCA/EPG requires orderNumber ≤ 32 chars and rejects hyphens ("Order number
     // is invalid", errorCode=1). A hyphenated UUID is 36 chars; strip the hyphens
     // to get a unique 32-char alphanumeric value used consistently everywhere.
@@ -155,12 +191,16 @@ export class OrdersService {
       guestDetails: dto.guestDetails ?? null,
       amount,
       currency,
+      promoCode: promo?.code ?? null,
+      discountPercent: promo?.discountPercent ?? null,
       status: OrderStatus.PENDING,
     });
 
+    // Saved before the gateway call so a limited promo's use is held while the customer pays.
+    const saved = promo?.maxUses != null ? await this.reservePromoUse(base, promo) : await this.orderRepo.save(base);
+
     // Free event: no gateway round-trip.
     if (amount === 0) {
-      const saved = await this.orderRepo.save(base);
       await this.markPaid(saved.id);
       const redirectTo = `/${dto.locale}/events/${event.slug}/confirmed?orderNumber=${orderNumber}`;
       return { orderNumber, redirectTo };
@@ -168,18 +208,26 @@ export class OrdersService {
 
     const returnUrl = this.buildReturnUrl(dto.locale, event.slug, orderNumber);
     this.logger.log(`checkout registering with EPG: orderNumber=${orderNumber} amount=${amount} currency=${currency}`);
-    const { orderId, formUrl } = await this.epg.register({
-      orderNumber,
-      amount,
-      currency,
-      returnUrl,
-      failUrl: returnUrl,
-      description: event.title?.en ?? event.slug,
-    });
+    let registered: { orderId: string; formUrl: string };
+    try {
+      registered = await this.epg.register({
+        orderNumber,
+        amount,
+        currency,
+        returnUrl,
+        failUrl: returnUrl,
+        description: event.title?.en ?? event.slug,
+      });
+    } catch (e) {
+      // Gateway never saw this order; drop it so it doesn't hold a promo use.
+      await this.orderRepo.delete(saved.id);
+      throw e;
+    }
+    const { orderId, formUrl } = registered;
 
-    base.epgOrderId = orderId;
-    base.epgFormUrl = formUrl;
-    await this.orderRepo.save(base);
+    saved.epgOrderId = orderId;
+    saved.epgFormUrl = formUrl;
+    await this.orderRepo.save(saved);
     this.logger.log(`checkout done: orderNumber=${orderNumber} epgOrderId=${orderId} formUrl=${formUrl}`);
     return { orderNumber, formUrl };
   }
@@ -261,6 +309,11 @@ export class OrdersService {
         }
         event.bookedCount = event.bookedCount + order.guests;
         await manager.save(event);
+      }
+      // ponytail: maxUses is checked at checkout, counted here; concurrent pending
+      // orders can overshoot by a few (same capture-then-review model as capacity).
+      if (order.promoCode) {
+        await manager.increment(PromoCodeEntity, { code: order.promoCode }, 'usedCount', 1);
       }
 
       order.status = OrderStatus.PAID;

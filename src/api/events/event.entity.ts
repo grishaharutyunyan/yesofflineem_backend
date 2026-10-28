@@ -68,6 +68,10 @@ export class EventEntity {
   @Column({ type: 'int', default: 0 })
   price: number;
 
+  // Admin switch for the promo code field on the booking page.
+  @Column({ type: 'boolean', default: true })
+  promoEnabled: boolean;
+
   @Column({ nullable: true })
   cardImageUrl: string | null;
 

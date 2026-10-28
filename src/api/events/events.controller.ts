@@ -1,20 +1,15 @@
 import {
-  Body,
   Controller,
-  Delete,
   Get,
   Param,
   ParseEnumPipe,
   ParseIntPipe,
-  Post,
-  Put,
   Query,
   DefaultValuePipe,
 } from '@nestjs/common';
 import { EventStatus } from '../../constants/enums/event.enums';
 import { EventsService } from './events.service';
-import { CreateEventDto } from './dto/create-event.dto';
-import { UpdateEventDto } from './dto/update-event.dto';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { PaginationOptionsDto } from '../../orm/pagination/dto/pagination-options.dto';
 import {
   parseGetPaginationParams,
@@ -23,7 +18,10 @@ import {
 
 @Controller('events')
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly promos: PromoCodesService,
+  ) {}
 
   @Get()
   async findAll(
@@ -47,22 +45,8 @@ export class EventsController {
   }
 
   @Get(':slug')
-  findOne(@Param('slug') slug: string) {
-    return this.eventsService.findBySlug(slug);
-  }
-
-  @Post()
-  create(@Body() dto: CreateEventDto) {
-    return this.eventsService.create(dto);
-  }
-
-  @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateEventDto) {
-    return this.eventsService.update(id, dto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.eventsService.remove(id);
+  async findOne(@Param('slug') slug: string) {
+    const ev = await this.eventsService.findBySlug(slug);
+    return { ...ev, promoAvailable: ev.price > 0 && ev.promoEnabled && (await this.promos.hasUsable(ev.id)) };
   }
 }

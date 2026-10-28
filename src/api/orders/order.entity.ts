@@ -60,6 +60,12 @@ export class OrderEntity {
   @Column({ type: 'varchar', length: 3 })
   currency: string;
 
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  promoCode: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  discountPercent: number | null;
+
   @Column({ type: 'varchar', length: 16, default: OrderStatus.PENDING })
   status: OrderStatus;
 

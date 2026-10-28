@@ -2,6 +2,9 @@ import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OrderStatus } from '../../constants/enums/order.enums';
 
+/** Bank payment page lifetime; orders also use it as the promo-use hold window. */
+export const PAYMENT_PAGE_MINUTES = 20;
+
 export interface EpgRegisterParams {
   orderNumber: string;
   amount: number;
@@ -129,6 +132,7 @@ export class EpgService {
       returnUrl: p.returnUrl,
       failUrl: p.failUrl,
       description: p.description ?? '',
+      sessionTimeoutSecs: PAYMENT_PAGE_MINUTES * 60,
     });
     if (!json.orderId || !json.formUrl) {
       this.logger.error(`EPG register.do returned no orderId/formUrl: ${JSON.stringify(json).slice(0, 200)}`);
