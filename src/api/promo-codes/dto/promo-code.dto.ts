@@ -30,6 +30,10 @@ export class CreatePromoCodeDto {
   discountPercent: number;
 
   @IsOptional()
+  @IsBoolean()
+  singleGuest?: boolean;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   maxUses?: number | null;

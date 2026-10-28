@@ -29,6 +29,13 @@ export function applyDiscount(majorAmount: number, percent: number): number {
   return Math.round((majorAmount * (100 - percent)) / 100);
 }
 
+/** Order total in AMD: a single-guest code discounts one ticket, the rest pay full price. */
+export function discountedTotal(price: number, guests: number, promo?: { discountPercent: number; singleGuest: boolean } | null): number {
+  if (!promo) return price * guests;
+  if (promo.singleGuest) return applyDiscount(price, promo.discountPercent) + price * (guests - 1);
+  return applyDiscount(price * guests, promo.discountPercent);
+}
+
 const MAX_FAILS = 10;
 // Site-wide cap: per-client keys come from spoofable headers, so a script rotating
 // fake IPs still hits this. Real users mistyping won't get near it.
@@ -70,6 +77,7 @@ export class PromoCodesService {
         code: dto.code,
         eventId: dto.eventId ?? null,
         discountPercent: dto.discountPercent,
+        singleGuest: dto.singleGuest ?? true,
         maxUses: dto.maxUses ?? null,
         validFrom: dto.validFrom ? new Date(dto.validFrom) : null,
         validUntil: dto.validUntil ? new Date(dto.validUntil) : null,
