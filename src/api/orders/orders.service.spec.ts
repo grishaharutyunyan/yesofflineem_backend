@@ -106,6 +106,13 @@ describe('OrdersService.checkout', () => {
     expect(epg.register).not.toHaveBeenCalled();
   });
 
+  it('charges full price for every guest but one with a single-guest code', async () => {
+    promos.resolve.mockResolvedValueOnce({ code: 'ONE20', discountPercent: 20, singleGuest: true } as any);
+    const { svc, epg } = setup({ ...activeEvent, price: 10000 });
+    await svc.checkout({ slug: 'dinner', guests: 3, firstName: 'A', email: 'a@b.c', locale: 'en', promoCode: 'one20' } as any, 'ip');
+    expect((epg.register.mock.calls[0] as any)[0].amount).toBe(2800000); // (8 000 + 20 000) * 100
+  });
+
   it('registers with EPG and returns formUrl for a paid event', async () => {
     const { svc, epg } = setup(activeEvent);
     const res = await svc.checkout({ slug: 'dinner', guests: 2, firstName: 'A', email: 'a@b.c', locale: 'en' } as any);

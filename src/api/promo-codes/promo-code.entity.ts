@@ -22,6 +22,10 @@ export class PromoCodeEntity {
   @Column({ type: 'int' })
   discountPercent: number;
 
+  // true = discount covers one guest's ticket only; false = every guest in the order.
+  @Column({ type: 'boolean', default: true })
+  singleGuest: boolean;
+
   // null = unlimited.
   @Column({ type: 'int', nullable: true })
   maxUses: number | null;

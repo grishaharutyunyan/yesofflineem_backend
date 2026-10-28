@@ -19,7 +19,7 @@ import { buildOrdersPdf } from './orders-pdf';
 import { pickLocaleText } from '../events/event-i18n.types';
 import { CheckoutDto } from './dto/checkout.dto';
 import { IPaginationData, IPaginationDTO } from '../../constants/interfaces/pagination.interfaces';
-import { PromoCodesService, applyDiscount, INVALID_PROMO } from '../promo-codes/promo-codes.service';
+import { PromoCodesService, discountedTotal, INVALID_PROMO } from '../promo-codes/promo-codes.service';
 import { PromoCodeEntity } from '../promo-codes/promo-code.entity';
 
 interface EpgConfig { currency: string; amountMultiplier: number; }
@@ -43,17 +43,17 @@ export class OrdersService {
     return this.config.get<EpgConfig>('epg');
   }
 
-  computeAmount(price: number, guests: number, discountPercent = 0): number {
-    return applyDiscount(price * guests, discountPercent) * this.epgConfig.amountMultiplier;
+  computeAmount(price: number, guests: number, promo?: { discountPercent: number; singleGuest: boolean } | null): number {
+    return discountedTotal(price, guests, promo) * this.epgConfig.amountMultiplier;
   }
 
   /** Public pre-checkout check so the booking page can preview the discount. */
-  async checkPromo(slug: string, code: string, client: string): Promise<{ code: string; discountPercent: number }> {
+  async checkPromo(slug: string, code: string, client: string): Promise<{ code: string; discountPercent: number; singleGuest: boolean }> {
     const event = await this.eventRepo.findOne({ where: { slug } });
     if (!event) throw new NotFoundException(`Event "${slug}" not found`);
     if (!event.promoEnabled) throw new BadRequestException('Promo codes are not accepted for this event');
     const promo = await this.promos.resolve(code, event.id, client);
-    return { code: promo.code, discountPercent: promo.discountPercent };
+    return { code: promo.code, discountPercent: promo.discountPercent, singleGuest: promo.singleGuest };
   }
 
   /**
@@ -170,7 +170,7 @@ export class OrdersService {
       throw new BadRequestException('Promo codes are not accepted for this event');
     }
     const promo = dto.promoCode ? await this.promos.resolve(dto.promoCode, event.id, client) : null;
-    const amount = this.computeAmount(event.price, dto.guests, promo?.discountPercent);
+    const amount = this.computeAmount(event.price, dto.guests, promo);
     // ARCA/EPG requires orderNumber ≤ 32 chars and rejects hyphens ("Order number
     // is invalid", errorCode=1). A hyphenated UUID is 36 chars; strip the hyphens
     // to get a unique 32-char alphanumeric value used consistently everywhere.

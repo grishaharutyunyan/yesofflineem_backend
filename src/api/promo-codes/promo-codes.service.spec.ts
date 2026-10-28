@@ -1,5 +1,5 @@
 import { BadRequestException, HttpException } from '@nestjs/common';
-import { PromoCodesService, applyDiscount, isPromoUsable } from './promo-codes.service';
+import { PromoCodesService, applyDiscount, discountedTotal, isPromoUsable } from './promo-codes.service';
 
 const base = {
   id: 1, code: 'SAVE10', eventId: null, discountPercent: 10, maxUses: null, usedCount: 0,
@@ -11,6 +11,15 @@ describe('promo codes', () => {
     expect(applyDiscount(10000, 10)).toBe(9000);
     expect(applyDiscount(9999, 15)).toBe(8499);
     expect(applyDiscount(5000, 100)).toBe(0);
+  });
+
+  it('discountedTotal discounts one ticket for single-guest codes', () => {
+    // 10 000 AMD × 3 guests, 20% off one guest: 8 000 + 2 × 10 000
+    expect(discountedTotal(10000, 3, { discountPercent: 20, singleGuest: true })).toBe(28000);
+    expect(discountedTotal(10000, 1, { discountPercent: 20, singleGuest: true })).toBe(8000);
+    expect(discountedTotal(10000, 3, { discountPercent: 20, singleGuest: false })).toBe(24000);
+    expect(discountedTotal(10000, 3, { discountPercent: 100, singleGuest: true })).toBe(20000);
+    expect(discountedTotal(10000, 3, null)).toBe(30000);
   });
 
   it('isPromoUsable checks active, event, dates and uses', () => {
