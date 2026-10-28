@@ -5,6 +5,8 @@ import { EventEntity } from '../events/event.entity';
 import { OrderStatus } from '../../constants/enums/order.enums';
 import { EventStatus } from '../../constants/enums/event.enums';
 
+const promos = { resolve: jest.fn(async () => ({ code: "SAVE20", discountPercent: 20 })) };
+
 function makeConfig() {
   return {
     get: (key: string) => {
@@ -17,7 +19,7 @@ function makeConfig() {
 
 describe('OrdersService.computeAmount', () => {
   it('multiplies price by guests and multiplier', () => {
-    const svc = new OrdersService(null as any, null as any, makeConfig(), null as any, null as any);
+    const svc = new OrdersService(null as any, null as any, makeConfig(), null as any, null as any, promos as any);
     expect(svc.computeAmount(5, 2)).toBe(1000); // 5 * 2 * 100
     expect(svc.computeAmount(0, 3)).toBe(0);
   });
@@ -26,7 +28,7 @@ describe('OrdersService.computeAmount', () => {
 describe('OrdersService.checkout', () => {
   const activeEvent = {
     id: 7, slug: 'dinner', status: EventStatus.ACTIVE, price: 5,
-    maxCapacity: 10, bookedCount: 0, title: { en: 'Dinner', hy: '' },
+    maxCapacity: 10, bookedCount: 0, promoEnabled: true, title: { en: 'Dinner', hy: '' },
   };
 
   function setup(event: any) {
@@ -64,9 +66,45 @@ describe('OrdersService.checkout', () => {
     const eventRepo = { findOne: jest.fn(async () => event) };
     const epg = { register: jest.fn(async () => ({ orderId: 'oid', formUrl: 'https://epg/p/1' })) };
     const mail = { sendCustomerConfirmation: jest.fn() };
-    const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any);
+    const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any, promos as any);
     return { svc, orderRepo, eventRepo, epg, mail, eventRow, savedOrders };
   }
+
+  it('applies a server-resolved promo discount to the charged amount', async () => {
+    const { svc, epg, savedOrders } = setup(activeEvent);
+    await svc.checkout({ slug: 'dinner', guests: 2, firstName: 'A', email: 'a@b.c', locale: 'en', promoCode: 'save20' } as any, 'ip');
+    expect(promos.resolve).toHaveBeenCalledWith('save20', 7, 'ip');
+    expect((epg.register.mock.calls[0] as any)[0].amount).toBe(800); // 5 * 2 * 0.8 * 100
+    expect(savedOrders[0]).toMatchObject({ promoCode: 'SAVE20', discountPercent: 20 });
+  });
+
+  it('holds the last promo use for a pending order and refuses the next checkout', async () => {
+    const limited = { id: 3, code: 'ONCE', discountPercent: 20, maxUses: 1, usedCount: 0 };
+    promos.resolve.mockResolvedValue(limited as any);
+    const { svc, orderRepo, savedOrders } = setup(activeEvent);
+    const pending = () => savedOrders.filter((o) => o.promoCode === 'ONCE' && o.status === 'pending').length;
+    (orderRepo.manager as any) = {
+      transaction: async (cb: any) => cb({
+        findOne: async () => limited,
+        createQueryBuilder: () => ({ where() { return this; }, andWhere() { return this; }, getCount: async () => pending() }),
+        save: orderRepo.save,
+      }),
+    };
+    const dto = { slug: 'dinner', guests: 1, firstName: 'A', email: 'a@b.c', locale: 'en', promoCode: 'once' } as any;
+    await svc.checkout(dto, 'ip1');
+    await expect(svc.checkout(dto, 'ip2')).rejects.toBeInstanceOf(BadRequestException);
+    expect(pending()).toBe(1);
+    promos.resolve.mockResolvedValue({ code: 'SAVE20', discountPercent: 20 } as any);
+  });
+
+  it('rejects a promo code when the event has promos disabled', async () => {
+    const { svc, epg } = setup({ ...activeEvent, promoEnabled: false });
+    await expect(
+      svc.checkout({ slug: 'dinner', guests: 1, firstName: 'A', email: 'a@b.c', locale: 'en', promoCode: 'save20' } as any, 'ip'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(svc.checkPromo('dinner', 'save20', 'ip')).rejects.toBeInstanceOf(BadRequestException);
+    expect(epg.register).not.toHaveBeenCalled();
+  });
 
   it('registers with EPG and returns formUrl for a paid event', async () => {
     const { svc, epg } = setup(activeEvent);
@@ -160,7 +198,7 @@ describe('OrdersService.verify idempotency', () => {
       })),
     };
     const mail = { sendCustomerConfirmation: jest.fn() };
-    const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any);
+    const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any, promos as any);
     return { svc, epg, mail, eventRow, orderRow, orderRepo, managerMock };
   }
 
@@ -225,7 +263,7 @@ describe('OrdersService.verify non-PAID', () => {
       })),
     };
     const mail = { sendCustomerConfirmation: jest.fn() };
-    const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any);
+    const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any, promos as any);
 
     const res = await svc.verify('on-1');
 
@@ -276,7 +314,7 @@ describe('OrdersService.refund / reverse', () => {
     const eventRepo = { findOne: jest.fn() };
     const epg = { refund: jest.fn(async () => undefined), reverse: jest.fn(async () => undefined) };
     const mail = { sendCustomerConfirmation: jest.fn() };
-    const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any);
+    const svc = new OrdersService(orderRepo as any, eventRepo as any, makeConfig(), epg as any, mail as any, promos as any);
     return { svc, epg, eventRow, orderRow, managerMock };
   }
 

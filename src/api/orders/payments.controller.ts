@@ -1,14 +1,25 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { OrdersService } from './orders.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { CheckPromoCodeDto } from '../promo-codes/dto/promo-code.dto';
+
+// Requests arrive via the Next.js /api rewrite, so the real client is the first X-Forwarded-For hop.
+const clientKey = (req: Request) =>
+  String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.ip || '';
 
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly orders: OrdersService) {}
 
   @Post('checkout')
-  checkout(@Body() dto: CheckoutDto) {
-    return this.orders.checkout(dto);
+  checkout(@Body() dto: CheckoutDto, @Req() req: Request) {
+    return this.orders.checkout(dto, clientKey(req));
+  }
+
+  @Post('promo')
+  checkPromo(@Body() dto: CheckPromoCodeDto, @Req() req: Request) {
+    return this.orders.checkPromo(dto.slug, dto.code, clientKey(req));
   }
 
   @Get('status')

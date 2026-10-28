@@ -66,6 +66,11 @@ export class CheckoutDto {
   @Type(() => GuestDetailDto)
   guestDetails?: GuestDetailDto[];
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  promoCode?: string;
+
   @IsIn(['en', 'hy'])
   locale: string;
 }

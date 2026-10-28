@@ -1,4 +1,4 @@
-import { IsArray, IsEnum, IsNumber, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsNumber, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EventStatus } from '../../../constants/enums/event.enums';
 import type {
@@ -63,6 +63,9 @@ export class UpdateEventDto {
 
   @IsOptional() @IsNumber()
   price?: number;
+
+  @IsOptional() @IsBoolean()
+  promoEnabled?: boolean;
 
   @IsOptional() @IsString()
   cardImageUrl?: string | null;

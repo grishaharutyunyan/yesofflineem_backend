@@ -1,5 +1,6 @@
 import {
   IsString,
+  IsBoolean,
   IsOptional,
   IsNumber,
   IsEnum,
@@ -100,6 +101,10 @@ export class CreateEventDto {
   @IsNumber()
   @Min(0)
   price: number;
+
+  @IsOptional()
+  @IsBoolean()
+  promoEnabled?: boolean;
 
   @IsOptional()
   @IsString()
